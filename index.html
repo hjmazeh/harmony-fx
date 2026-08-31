@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Harmony — Forex Trading</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Noto+Serif+Arabic:wght@400;500&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -15,8 +15,6 @@
     --gold-lt: #E2C97E;
     --cream:   #F5F0E8;
     --steel:   #6B8F9E;
-    --white:   #FFFFFF;
-    --text:    #1C2B35;
     --muted:   #8A9BA5;
   }
 
@@ -29,6 +27,20 @@
     line-height: 1.6;
     overflow-x: hidden;
   }
+  body.arabic {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    direction: rtl;
+    text-align: right;
+  }
+
+  .lang-en { display: block; }
+  .lang-ar { display: none; }
+  body.arabic .lang-en { display: none; }
+  body.arabic .lang-ar { display: block; }
+  span.lang-en { display: inline; }
+  span.lang-ar { display: none; }
+  body.arabic span.lang-en { display: none; }
+  body.arabic span.lang-ar { display: inline; }
 
   /* ── NAV */
   nav {
@@ -40,13 +52,14 @@
     justify-content: space-between;
     padding: 24px 60px;
     background: transparent;
-    transition: background 0.4s;
+    transition: background 0.4s, padding 0.3s;
   }
   nav.scrolled {
-    background: rgba(13, 31, 45, 0.95);
+    background: rgba(13,31,45,0.95);
     backdrop-filter: blur(8px);
     padding: 16px 60px;
   }
+  .nav-left { display: flex; align-items: center; gap: 24px; }
   .nav-logo {
     font-family: 'Playfair Display', serif;
     font-size: 22px;
@@ -54,8 +67,37 @@
     color: var(--cream);
     letter-spacing: 0.5px;
     text-decoration: none;
+    position: relative;
   }
-  .nav-logo span { color: var(--gold); }
+  .nav-logo::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0;
+    width: 13px; height: 1.5px;
+    background: var(--gold);
+    border-radius: 1px;
+  }
+  .lang-toggle {
+    display: flex;
+    align-items: center;
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .lang-btn {
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .lang-btn.active { background: var(--gold); color: var(--navy); }
   .nav-contact {
     font-size: 13px;
     font-weight: 500;
@@ -78,8 +120,6 @@
     position: relative;
     overflow: hidden;
   }
-
-  /* background subtle texture */
   .hero::before {
     content: '';
     position: absolute;
@@ -89,19 +129,14 @@
       radial-gradient(ellipse at 20% 80%, rgba(201,168,76,0.06) 0%, transparent 50%);
     pointer-events: none;
   }
-
-  /* THE SIGNATURE ELEMENT — the gold calm line */
   .calm-line {
     position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
+    top: 50%; left: 0; right: 0;
     height: 1px;
     background: linear-gradient(90deg, transparent 0%, var(--gold) 20%, var(--gold) 80%, transparent 100%);
     opacity: 0.15;
     transform: translateY(-80px);
   }
-
   .hero-eyebrow {
     font-size: 11px;
     font-weight: 600;
@@ -109,42 +144,73 @@
     text-transform: uppercase;
     color: var(--gold);
     margin-bottom: 28px;
-    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
+    position: relative;
   }
+  body.arabic .hero-eyebrow { flex-direction: row-reverse; }
   .hero-eyebrow::before {
     content: '';
     display: inline-block;
-    width: 32px;
-    height: 1px;
+    width: 32px; height: 1px;
     background: var(--gold);
   }
 
   .hero-title {
     font-family: 'Playfair Display', serif;
-    font-size: clamp(42px, 6vw, 76px);
+    font-size: clamp(42px, 6vw, 72px);
     font-weight: 400;
-    line-height: 1.1;
+    line-height: 1.15;
     color: var(--cream);
-    max-width: 720px;
-    margin-bottom: 32px;
+    max-width: 780px;
+    margin-bottom: 24px;
     position: relative;
   }
-  .hero-title em {
-    font-style: italic;
+  body.arabic .hero-title {
+    font-family: 'Noto Serif Arabic', serif;
+    line-height: 1.4;
+  }
+  .hero-title .gold-line {
+    display: block;
     color: var(--gold-lt);
+    font-style: italic;
+  }
+  body.arabic .hero-title .gold-line {
+    font-style: normal;
+    display: inline-block;
+    transform: skewX(8deg);
   }
 
-  .hero-sub {
-    font-size: 16px;
+  .hero-subtitle {
+    font-size: clamp(16px, 2vw, 20px);
     font-weight: 300;
     color: var(--steel);
-    max-width: 480px;
-    line-height: 1.8;
-    margin-bottom: 52px;
-    position: relative;
+    max-width: 500px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  .hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 48px;
+  }
+  body.arabic .hero-tags { flex-direction: row-reverse; }
+  .hero-tag {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    padding: 6px 14px;
+    border: 1px solid rgba(107,143,158,0.25);
+    border-radius: 2px;
+  }
+  .hero-tag.highlight {
+    color: var(--gold);
+    border-color: rgba(201,168,76,0.3);
   }
 
   .hero-cta {
@@ -160,18 +226,14 @@
     text-transform: uppercase;
     text-decoration: none;
     transition: background 0.2s, gap 0.2s;
-    position: relative;
+    width: fit-content;
   }
-  .hero-cta:hover {
-    background: var(--gold-lt);
-    gap: 18px;
-  }
-  .hero-cta-arrow { font-size: 16px; }
+  .hero-cta:hover { background: var(--gold-lt); gap: 18px; }
+  body.arabic .hero-cta { flex-direction: row-reverse; }
 
   .hero-scroll {
     position: absolute;
-    bottom: 40px;
-    left: 60px;
+    bottom: 40px; left: 60px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -180,9 +242,9 @@
     text-transform: uppercase;
     color: var(--muted);
   }
+  body.arabic .hero-scroll { left: auto; right: 60px; }
   .hero-scroll-line {
-    width: 40px;
-    height: 1px;
+    width: 40px; height: 1px;
     background: var(--muted);
     animation: scrollline 2s ease-in-out infinite;
   }
@@ -208,18 +270,26 @@
     background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
     opacity: 0.3;
   }
-
   .pillar {
     padding: 0 48px 0 0;
     border-right: 1px solid rgba(201,168,76,0.12);
     margin-right: 48px;
   }
+  body.arabic .pillar {
+    padding: 0 0 0 48px;
+    border-right: none;
+    border-left: 1px solid rgba(201,168,76,0.12);
+    margin-right: 0;
+    margin-left: 48px;
+  }
   .pillar:last-child {
     border-right: none;
+    border-left: none !important;
     margin-right: 0;
+    margin-left: 0 !important;
     padding-right: 0;
+    padding-left: 0 !important;
   }
-
   .pillar-number {
     font-family: 'Playfair Display', serif;
     font-size: 48px;
@@ -228,7 +298,6 @@
     line-height: 1;
     margin-bottom: 24px;
   }
-
   .pillar-title {
     font-family: 'Playfair Display', serif;
     font-size: 22px;
@@ -236,13 +305,45 @@
     color: var(--cream);
     margin-bottom: 16px;
   }
+  body.arabic .pillar-title { font-family: 'Noto Serif Arabic', serif; }
+  .pillar-text { font-size: 14px; font-weight: 300; color: var(--steel); line-height: 1.9; }
 
-  .pillar-text {
-    font-size: 14px;
-    font-weight: 300;
-    color: var(--steel);
-    line-height: 1.9;
+  /* ── OLD SCHOOL SECTION */
+  .oldschool {
+    padding: 100px 60px;
+    background: var(--navy);
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 80px;
+    align-items: start;
+    position: relative;
   }
+  .oldschool::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 60px; right: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+    opacity: 0.15;
+  }
+  .oldschool-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding-top: 6px;
+  }
+  .oldschool-text {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(17px, 2vw, 22px);
+    font-weight: 400;
+    color: var(--cream);
+    line-height: 1.8;
+    opacity: 0.85;
+  }
+  body.arabic .oldschool-text { font-family: 'Noto Serif Arabic', serif; }
+  body.arabic .oldschool { grid-template-columns: 2fr 1fr; }
 
   /* ── STATEMENT */
   .statement {
@@ -253,6 +354,7 @@
     text-align: center;
     position: relative;
     overflow: hidden;
+    background: var(--teal);
   }
   .statement::before {
     content: '';
@@ -261,37 +363,34 @@
     background: radial-gradient(ellipse at center, rgba(201,168,76,0.05) 0%, transparent 70%);
     pointer-events: none;
   }
-
   .statement-quote {
     font-family: 'Playfair Display', serif;
-    font-size: clamp(28px, 4vw, 48px);
+    font-size: clamp(24px, 3.5vw, 42px);
     font-weight: 400;
     color: var(--cream);
     max-width: 800px;
-    line-height: 1.4;
+    line-height: 1.5;
     margin-bottom: 32px;
   }
-  .statement-quote em { color: var(--gold-lt); font-style: italic; }
-
-  .statement-line {
-    width: 60px;
-    height: 1px;
-    background: var(--gold);
-    opacity: 0.5;
-    margin-bottom: 24px;
+  body.arabic .statement-quote { font-family: 'Noto Serif Arabic', serif; line-height: 1.7; }
+  .statement-quote em {
+    font-style: italic;
+    color: var(--gold-lt);
+    display: block;
+    margin-top: 8px;
   }
-
-  .statement-sub {
-    font-size: 14px;
-    color: var(--steel);
-    letter-spacing: 0.5px;
-    font-weight: 300;
+  body.arabic .statement-quote em {
+    font-style: normal;
+    display: inline-block;
+    transform: skewX(8deg);
   }
+  .statement-line { width: 60px; height: 1px; background: var(--gold); opacity: 0.5; margin-bottom: 24px; }
+  .statement-sub { font-size: 14px; color: var(--steel); letter-spacing: 0.5px; font-weight: 300; }
 
   /* ── CONTACT */
   .contact {
     padding: 100px 60px;
-    background: var(--teal);
+    background: var(--navy);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 80px;
@@ -306,7 +405,6 @@
     background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
     opacity: 0.3;
   }
-
   .contact-left h2 {
     font-family: 'Playfair Display', serif;
     font-size: clamp(32px, 4vw, 48px);
@@ -315,87 +413,53 @@
     line-height: 1.2;
     margin-bottom: 20px;
   }
-  .contact-left h2 em { color: var(--gold-lt); font-style: italic; }
-  .contact-left p {
-    font-size: 15px;
-    font-weight: 300;
-    color: var(--steel);
-    line-height: 1.8;
-    max-width: 380px;
-  }
-
-  .contact-right {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
+  body.arabic .contact-left h2 { font-family: 'Noto Serif Arabic', serif; line-height: 1.4; }
+  .contact-left p { font-size: 15px; font-weight: 300; color: var(--steel); line-height: 1.8; max-width: 380px; }
+  .contact-right { display: flex; flex-direction: column; gap: 20px; }
   .contact-item {
     display: flex;
     align-items: flex-start;
     gap: 20px;
     padding: 24px 28px;
-    background: rgba(13,31,45,0.5);
+    background: rgba(26,58,74,0.4);
     border-left: 2px solid var(--gold);
     text-decoration: none;
     transition: background 0.2s;
   }
-  .contact-item:hover { background: rgba(13,31,45,0.8); }
-
-  .contact-icon {
-    font-size: 20px;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }
-
-  .contact-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 6px;
-  }
-  .contact-value {
-    font-size: 15px;
-    color: var(--cream);
-    font-weight: 400;
-  }
+  body.arabic .contact-item { border-left: none; border-right: 2px solid var(--gold); flex-direction: row-reverse; }
+  .contact-item:hover { background: rgba(26,58,74,0.8); }
+  .contact-icon { font-size: 20px; margin-top: 2px; flex-shrink: 0; }
+  .contact-label { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .contact-value { font-size: 15px; color: var(--cream); font-weight: 400; direction: ltr; unicode-bidi: embed; }
 
   /* ── FOOTER */
   footer {
     padding: 32px 60px;
-    background: var(--navy);
+    background: var(--teal);
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-top: 1px solid rgba(201,168,76,0.1);
   }
-  .footer-logo {
-    font-family: 'Playfair Display', serif;
-    font-size: 18px;
-    color: var(--cream);
-    opacity: 0.6;
-  }
-  .footer-logo span { color: var(--gold); }
-  .footer-note {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 300;
-  }
+  .footer-logo { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--cream); opacity: 0.6; position: relative; }
+  .footer-logo::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 10px; height: 1px; background: var(--gold); opacity: 0.6; }
+  .footer-note { font-size: 12px; color: var(--muted); font-weight: 300; }
 
   /* ── RESPONSIVE */
   @media (max-width: 900px) {
     nav, nav.scrolled { padding: 20px 24px; }
     .hero { padding: 100px 24px 60px; }
-    .pillars { grid-template-columns: 1fr; padding: 80px 24px; gap: 48px; }
-    .pillar { border-right: none; border-bottom: 1px solid rgba(201,168,76,0.12); margin-right: 0; padding-right: 0; padding-bottom: 48px; margin-bottom: 0; }
-    .pillar:last-child { border-bottom: none; padding-bottom: 0; }
+    .pillars { grid-template-columns: 1fr; padding: 80px 24px; }
+    .pillar { border-right: none; border-left: none !important; border-bottom: 1px solid rgba(201,168,76,0.12); margin: 0 !important; padding: 0 0 48px 0 !important; }
+    .pillar:last-child { border-bottom: none; padding-bottom: 0 !important; }
+    .oldschool { grid-template-columns: 1fr; padding: 80px 24px; gap: 24px; }
+    body.arabic .oldschool { grid-template-columns: 1fr; }
     .statement { padding: 80px 24px; }
     .contact { grid-template-columns: 1fr; padding: 80px 24px; gap: 48px; }
     footer { padding: 24px; flex-direction: column; gap: 12px; text-align: center; }
     .hero-scroll { left: 24px; }
-    .pillars::before, .contact::before { left: 24px; right: 24px; }
+    body.arabic .hero-scroll { left: auto; right: 24px; }
+    .pillars::before, .contact::before, .oldschool::before { left: 24px; right: 24px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -403,66 +467,127 @@
   }
 </style>
 </head>
-<body>
+<body id="body">
 
 <nav id="nav">
-  <a href="#" class="nav-logo">Harmony<span>.</span></a>
-  <a href="#contact" class="nav-contact">Get in touch</a>
+  <div class="nav-left">
+    <a href="#" class="nav-logo">Harmony</a>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-ar" onclick="setLang('ar')">ع</button>
+    </div>
+  </div>
+  <a href="#contact" class="nav-contact">
+    <span class="lang-en">Get in touch</span>
+    <span class="lang-ar">تواصل معنا</span>
+  </a>
 </nav>
 
 <section class="hero">
   <div class="calm-line"></div>
 
-  <div class="hero-eyebrow">Forex Trading</div>
+  <div class="hero-eyebrow">
+    <span class="lang-en">Forex Trading</span>
+    <span class="lang-ar">تداول العملات الأجنبية</span>
+  </div>
 
   <h1 class="hero-title">
-    Trade with someone<br>
-    who <em>needs you to win.</em>
+    <span class="lang-en">
+      Trade on your terms.
+      <span class="gold-line">With someone who knows the difference.</span>
+    </span>
+    <span class="lang-ar">
+      تداول بشروطك.
+      <span class="gold-line">مع من يعرف الفرق.</span>
+    </span>
   </h1>
 
-  <p class="hero-sub">
-    We don't make money unless you do. That's not a slogan — it's how our business works. Straightforward conditions, honest conversations, and a partner who picks up the phone.
+  <p class="hero-subtitle">
+    <span class="lang-en">Clear conditions. Real support. Your call.</span>
+    <span class="lang-ar">شروط واضحة. دعم حقيقي. قرارك أنت.</span>
   </p>
 
+  <div class="hero-tags">
+    <span class="hero-tag lang-en">Fast execution</span>
+    <span class="hero-tag lang-en">MT5 platform</span>
+    <span class="hero-tag lang-en">Tight spreads</span>
+    <span class="hero-tag highlight lang-en">People who remember your name</span>
+    <span class="hero-tag lang-ar">تنفيذ سريع</span>
+    <span class="hero-tag lang-ar">منصة MT5</span>
+    <span class="hero-tag lang-ar">سبريد ضيق</span>
+    <span class="hero-tag highlight lang-ar">أناس يتذكرون اسمك</span>
+  </div>
+
   <a href="#contact" class="hero-cta">
-    Start a conversation
-    <span class="hero-cta-arrow">→</span>
+    <span class="lang-en">Get started</span>
+    <span class="lang-ar">ابدأ الآن</span>
+    <span>→</span>
   </a>
 
   <div class="hero-scroll">
     <div class="hero-scroll-line"></div>
-    Scroll
+    <span class="lang-en">Scroll</span>
+    <span class="lang-ar">تمرير</span>
   </div>
 </section>
 
 <section class="pillars">
   <div class="pillar">
     <div class="pillar-number">01</div>
-    <h3 class="pillar-title">No fine print.</h3>
+    <h3 class="pillar-title">
+      <span class="lang-en">Forex, indices &amp; commodities.</span>
+      <span class="lang-ar">عملات، مؤشرات وسلع.</span>
+    </h3>
     <p class="pillar-text">
-      What you see is what you get. Spreads, conditions, and fees are explained clearly before you deposit a dollar. We'd rather lose a client upfront than disappoint them later.
+      <span class="lang-en">MT5 platform. Competitive spreads. No requotes. Executed at the price you see.</span>
+      <span class="lang-ar">منصة MT5. سبريد تنافسي. لا إعادة تسعير. التنفيذ بالسعر الذي تراه.</span>
     </p>
   </div>
   <div class="pillar">
     <div class="pillar-number">02</div>
-    <h3 class="pillar-title">Your money, your control.</h3>
+    <h3 class="pillar-title">
+      <span class="lang-en">Instant withdrawals.</span>
+      <span class="lang-ar">سحب فوري.</span>
+    </h3>
     <p class="pillar-text">
-      Deposits and withdrawals processed without delays or excuses. Your funds are yours — we're just holding them until you need them.
+      <span class="lang-en">Request a withdrawal and you'll receive it within minutes, any time during market hours.</span>
+      <span class="lang-ar">اطلب سحب أموالك وستستلمها خلال دقائق، في أي وقت خلال ساعات السوق.</span>
     </p>
   </div>
   <div class="pillar">
     <div class="pillar-number">03</div>
-    <h3 class="pillar-title">A person, not a ticket.</h3>
+    <h3 class="pillar-title">
+      <span class="lang-en">A person, not a ticket.</span>
+      <span class="lang-ar">أنت إنسان، لا مجرد رقم.</span>
+    </h3>
     <p class="pillar-text">
-      When you call, someone answers. When you have a question, someone who knows your account gives you a real answer. No bots, no queues.
+      <span class="lang-en">When you call, someone answers. When you have a question, someone who knows your account gives you a real answer. No bots, no queues.</span>
+      <span class="lang-ar">عندما تتصل، يرد عليك شخص حقيقي. عندما تسأل، يجيبك من يعرف حسابك بإجابة حقيقية. لا روبوتات، لا طوابير انتظار.</span>
     </p>
   </div>
 </section>
 
+<section class="oldschool">
+  <div class="oldschool-label">
+    <span class="lang-en">Old school.</span>
+    <span class="lang-ar">الطريقة القديمة.</span>
+  </div>
+  <p class="oldschool-text">
+    <span class="lang-en">Old school means we know your trading style, your risk appetite, and when you usually trade. It means when something goes wrong — and sometimes it does — you call one number and the person who answers already knows the context. No explaining yourself from scratch. No ticket numbers. Just a conversation. The kind of trust you used to seal with a handshake.</span>
+    <span class="lang-ar">الطريقة القديمة تعني أننا نعرف أسلوبك في التداول، وتحملك للمخاطر، وأوقاتك المعتادة في السوق. تعني أنه حين يحدث خطأ ما — وأحياناً يحدث — تتصل برقم واحد والشخص الذي يرد يعرف سياقك مسبقاً. لا حاجة لشرح نفسك من البداية. لا أرقام تذاكر. فقط محادثة. النوع من الثقة الذي اعتدت إبرامه بالمصافحة.</span>
+  </p>
+</section>
+
 <section class="statement">
   <p class="statement-quote">
-    "Most traders already know what they're doing.<br>
-    They just need a broker who <em>gets out of their way.</em>"
+    <span class="lang-en">
+      Most traders already know what they're doing.
+      <em>They just need a broker who gets out of their way.</em>
+    </span>
+    <span class="lang-ar">
+      معظم المتداولين يعرفون ما يفعلون.
+      <em>هم فقط يحتاجون وسيطاً لا يقف في طريقهم.</em>
+    </span>
   </p>
   <div class="statement-line"></div>
   <p class="statement-sub">MT5 Platform &nbsp;·&nbsp; Forex &nbsp;·&nbsp; Indices &nbsp;·&nbsp; Commodities</p>
@@ -470,9 +595,13 @@
 
 <section class="contact" id="contact">
   <div class="contact-left">
-    <h2>Ready to <em>trade?</em></h2>
+    <h2>
+      <span class="lang-en">Open an account.</span>
+      <span class="lang-ar">افتح حساباً.</span>
+    </h2>
     <p>
-      Send us a message and we'll get back to you the same day. No forms, no automated replies — just a real conversation about what you're looking for.
+      <span class="lang-en">Send us a message with your details and we'll have your account ready right away.</span>
+      <span class="lang-ar">أرسل لنا رسالة بمعلوماتك وسيكون حسابك جاهزاً فوراً.</span>
     </p>
   </div>
   <div class="contact-right">
@@ -501,7 +630,7 @@
 </section>
 
 <footer>
-  <div class="footer-logo">Harmony<span>.</span></div>
+  <div class="footer-logo">Harmony</div>
   <div class="footer-note">© 2026 Harmony · harmonyfx.me · All rights reserved</div>
 </footer>
 
@@ -510,6 +639,25 @@
   window.addEventListener('scroll', () => {
     nav.classList.toggle('scrolled', window.scrollY > 40);
   });
+
+  function setLang(lang) {
+    const body = document.getElementById('body');
+    const btnEn = document.getElementById('btn-en');
+    const btnAr = document.getElementById('btn-ar');
+    if (lang === 'ar') {
+      body.classList.add('arabic');
+      body.setAttribute('dir', 'rtl');
+      body.setAttribute('lang', 'ar');
+      btnAr.classList.add('active');
+      btnEn.classList.remove('active');
+    } else {
+      body.classList.remove('arabic');
+      body.setAttribute('dir', 'ltr');
+      body.setAttribute('lang', 'en');
+      btnEn.classList.add('active');
+      btnAr.classList.remove('active');
+    }
+  }
 </script>
 
 </body>
