@@ -69,7 +69,8 @@
     text-decoration: none;
     position: relative;
   }
-  .nav-logo::after {
+  .nav-logo img { height: 32px; width: auto; display: block; }
+  .nav-logo-old::after {
     content: '';
     position: absolute;
     bottom: -2px; left: 0;
@@ -448,7 +449,10 @@
   /* ── RESPONSIVE */
   @media (max-width: 900px) {
     nav, nav.scrolled { padding: 20px 24px; }
-    .hero { padding: 100px 24px 60px; }
+    .nav-contact { display: none; }
+    .hero-title { font-size: clamp(32px, 8vw, 48px); }
+    .hero-title .gold-line { font-size: clamp(26px, 7vw, 40px); }
+    .hero { padding: 140px 24px 80px; }
     .pillars { grid-template-columns: 1fr; padding: 80px 24px; }
     .pillar { border-right: none; border-left: none !important; border-bottom: 1px solid rgba(201,168,76,0.12); margin: 0 !important; padding: 0 0 48px 0 !important; }
     .pillar:last-child { border-bottom: none; padding-bottom: 0 !important; }
@@ -471,7 +475,7 @@
 
 <nav id="nav">
   <div class="nav-left">
-    <a href="#" class="nav-logo">Harmony</a>
+    <a href="#" class="nav-logo"><img src="harmony-logo-02.png" alt="Harmony" /></a>
     <div class="lang-toggle">
       <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
       <button class="lang-btn" id="btn-ar" onclick="setLang('ar')">ع</button>
@@ -630,7 +634,7 @@
 </section>
 
 <footer>
-  <div class="footer-logo">Harmony</div>
+  <div class="footer-logo"><img src="harmony-logo-01.png" alt="Harmony" style="height:20px;width:auto;opacity:0.6;" /></div>
   <div class="footer-note">© 2026 Harmony · harmonyfx.me · All rights reserved</div>
 </footer>
 
