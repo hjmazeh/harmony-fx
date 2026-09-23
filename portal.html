@@ -608,7 +608,12 @@
           <div class="funding-form-group">
             <p class="funding-note lang-ar">حوّل هذا المبلغ عبر Whish Money إلى الرقم التالي:</p>
             <p class="funding-note lang-en">Transfer this amount via Whish Money to the number below:</p>
-            <div class="funding-phone-display" id="whish-phone-display" dir="ltr">—</div>
+            <div class="funding-phone-display" dir="ltr" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+              <span id="whish-phone-display">—</span>
+              <button type="button" class="copy-btn" onclick="copyText('whish-phone-display')">
+                <span class="lang-ar">نسخ</span><span class="lang-en">Copy</span>
+              </button>
+            </div>
           </div>
           <div class="funding-form-group">
             <label class="funding-label lang-ar">رقم العملية (Transaction ID)</label>
