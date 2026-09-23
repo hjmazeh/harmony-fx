@@ -814,6 +814,16 @@
 
     const data = userDoc.data();
 
+    // Declared here (not lower down where they're conceptually grouped)
+    // because loadHistory() can be called from the active-status branch
+    // below before the script reaches their original declaration line --
+    // a let/const is inaccessible until its own declaration actually runs,
+    // even though the function referencing it is hoisted.
+    const HISTORY_PAGE_SIZE = 10;
+    let depositHistoryCursor = null, depositHistoryDone = false;
+    let withdrawHistoryCursor = null, withdrawHistoryDone = false;
+    let depositPage1Unsub = null, withdrawPage1Unsub = null;
+
     // Set name and email in nav — the email matters for clients who have
     // more than one portal account, so they know which one they're in.
     const firstName = data.fullname ? data.fullname.split(' ')[0] : '';
@@ -1150,10 +1160,6 @@
 
     // ── TRANSACTION HISTORY (paginated, receipts shown as a link rather
     // than loaded inline, so a client with a long history stays fast) ──
-    const HISTORY_PAGE_SIZE = 10;
-    let depositHistoryCursor = null, depositHistoryDone = false;
-    let withdrawHistoryCursor = null, withdrawHistoryDone = false;
-    let depositPage1Unsub = null, withdrawPage1Unsub = null;
 
     // ── DISMISSIBLE NOTIFICATION BANNERS ──
     // Dismiss state lives in localStorage (per browser, not per account) --
