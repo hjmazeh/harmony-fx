@@ -616,11 +616,6 @@
             </div>
           </div>
           <div class="funding-form-group">
-            <label class="funding-label lang-ar">رقم العملية (Transaction ID)</label>
-            <label class="funding-label lang-en">Transaction ID</label>
-            <input type="text" id="deposit-txn-id" class="funding-input" placeholder="e.g. 626635511" dir="ltr">
-          </div>
-          <div class="funding-form-group">
             <label class="funding-label lang-ar">صورة الإيصال</label>
             <label class="funding-label lang-en">Receipt Screenshot</label>
             <input type="file" id="deposit-receipt" class="funding-input" accept="image/*">
@@ -1003,18 +998,12 @@
       const isAr = !document.getElementById('body').classList.contains('en');
 
       const amount = parseFloat(document.getElementById('deposit-amount').value);
-      const txnId = document.getElementById('deposit-txn-id').value.trim();
       const fileInput = document.getElementById('deposit-receipt');
       const file = fileInput.files[0];
       const selectedLogin = getSelectedFundingAccount();
 
       if (!amount || amount <= 0) {
         errEl.textContent = isAr ? 'الرجاء إدخال مبلغ صحيح.' : 'Please enter a valid amount.';
-        errEl.style.display = 'block';
-        return;
-      }
-      if (!txnId) {
-        errEl.textContent = isAr ? 'الرجاء إدخال رقم العملية.' : 'Please enter the transaction ID.';
         errEl.style.display = 'block';
         return;
       }
@@ -1042,7 +1031,6 @@
           method: 'Whish Money',
           claimed_amount: amount,
           approved_amount: null,
-          transaction_id: txnId,
           receipt_url: receiptUrl,
           status: 'pending',
           rejection_reason: null,
@@ -1056,12 +1044,11 @@
             to_email: 'support@harmonyfx.me',
             reply_to: user.email,
             subject: 'New Deposit Request — ' + (data.fullname || ''),
-            message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nMT5 Login: ${selectedLogin}\nAmount: $${amount}\nTransaction ID: ${txnId}\n\nLogin to review: https://staff.tratech.me/`
+            message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nMT5 Login: ${selectedLogin}\nAmount: $${amount}\n\nLogin to review: https://staff.tratech.me/`
           });
         } catch (emailErr) { console.log('Deposit notification failed:', emailErr); }
 
         document.getElementById('deposit-amount').value = '';
-        document.getElementById('deposit-txn-id').value = '';
         fileInput.value = '';
         document.getElementById('whish-deposit-form').style.display = 'none';
         alert(isAr ? 'تم إرسال طلب الإيداع! سنراجعه قريباً.' : 'Deposit request submitted! We will review it shortly.');
