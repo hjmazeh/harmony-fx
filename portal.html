@@ -322,6 +322,34 @@
     width: 100%; background: var(--teal); border: 1px solid var(--line); color: var(--cream);
     padding: 12px 14px; font-size: 14px; font-family: 'Inter', sans-serif;
   }
+  .funding-tab-btn {
+    flex: 1;
+    background: var(--teal); border: 1px solid var(--line); color: var(--cream);
+    padding: 12px; font-size: 13px; font-weight: 700; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: all 0.15s;
+  }
+  .funding-tab-btn.active { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+  .funding-form-group { margin-top: 16px; }
+  .funding-label { font-size: 11px; color: var(--steel); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-family: 'Inter', sans-serif; display: block; }
+  .funding-input {
+    width: 100%; background: var(--teal); border: 1px solid var(--line); color: var(--cream);
+    padding: 12px 14px; font-size: 14px; font-family: 'Inter', sans-serif;
+  }
+  .funding-note { font-size: 12px; color: var(--steel); line-height: 1.6; margin-top: 8px; }
+  .funding-phone-display { font-size: 20px; font-weight: 700; color: var(--gold-lt); font-family: 'Inter', sans-serif; direction: ltr; text-align: center; padding: 12px; background: var(--teal); border: 1px solid var(--gold); margin: 8px 0; }
+
+  .history-row { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .history-row:last-child { border-bottom: none; }
+  .history-meta { font-size: 13px; color: var(--cream); }
+  .history-sub { font-size: 11px; color: var(--steel); margin-top: 2px; }
+  .history-status { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap; }
+  .history-status.pending { background: var(--yellow-dim); color: var(--yellow); }
+  .history-status.done { background: var(--green-dim); color: var(--green); }
+  .history-status.rejected { background: rgba(232,131,122,0.1); color: var(--err); }
+  .history-status.processing { background: var(--gold-dim); color: var(--gold-lt); }
+  .history-link { color: var(--gold-lt); font-size: 11px; text-decoration: none; font-family: 'Inter', sans-serif; }
+  .history-link:hover { text-decoration: underline; }
+
   .funding-soon {
     position: absolute;
     top: 16px;
@@ -524,26 +552,142 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Funding -->
+    <!-- Fund & Withdraw (only shown once the client actually has an MT5
+         account to fund -- kept inside card-active, not shown for KYC-only
+         or MT5-pending states). -->
     <div class="funding-card">
-      <div class="funding-soon lang-ar">الأتمتة قريباً</div>
-      <div class="funding-soon lang-en">Automation Coming Soon</div>
-      <div class="funding-card-title lang-ar">تمويل الحساب</div>
-      <div class="funding-card-title lang-en">Fund Your Account</div>
-      <p class="funding-card-sub lang-ar">اختر طريقة التمويل، وسنكمل الطلب معك مباشرة عبر واتساب.</p>
-      <p class="funding-card-sub lang-en">Pick a funding method and we'll finish the request with you directly on WhatsApp.</p>
-      <div id="funding-account-picker" style="display:none;margin-top:16px;">
-        <div class="mt5-field-label lang-ar" style="margin-bottom:6px;">أي حساب تريد تمويله؟</div>
-        <div class="mt5-field-label lang-en" style="margin-bottom:6px;">Which account do you want to fund?</div>
+      <div class="funding-card-title lang-ar">تمويل وسحب الحساب</div>
+      <div class="funding-card-title lang-en">Fund & Withdraw</div>
+
+      <div id="funding-account-picker" style="display:none;margin-top:16px;margin-bottom:4px;">
+        <div class="mt5-field-label lang-ar" style="margin-bottom:6px;">أي حساب؟</div>
+        <div class="mt5-field-label lang-en" style="margin-bottom:6px;">Which account?</div>
         <select id="funding-account-select" class="funding-select"></select>
       </div>
-      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-        <button class="funding-method-btn" onclick="requestFunding('Whish Money')">Whish Money</button>
-        <button class="funding-method-btn" onclick="requestFunding('USDT')">USDT</button>
+
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="funding-tab-btn active" id="tab-btn-deposit" onclick="showFundingTab('deposit')">
+          <span class="lang-ar">إيداع</span><span class="lang-en">Deposit</span>
+        </button>
+        <button class="funding-tab-btn" id="tab-btn-withdraw" onclick="showFundingTab('withdraw')">
+          <span class="lang-ar">سحب</span><span class="lang-en">Withdraw</span>
+        </button>
+      </div>
+
+      <!-- DEPOSIT TAB -->
+      <div id="tab-deposit" style="margin-top:20px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="funding-method-btn" onclick="selectDepositMethod('Whish Money')">Whish Money</button>
+          <button class="funding-method-btn" onclick="selectDepositMethod('USDT')">USDT</button>
+        </div>
+
+        <!-- Whish Money deposit form -->
+        <div id="whish-deposit-form" style="display:none;margin-top:16px;">
+          <div class="funding-form-group" style="margin-top:0;">
+            <label class="funding-label lang-ar">المبلغ (USD)</label>
+            <label class="funding-label lang-en">Amount (USD)</label>
+            <input type="number" id="deposit-amount" class="funding-input" placeholder="100" min="1" step="0.01">
+          </div>
+          <div class="funding-form-group">
+            <p class="funding-note lang-ar">حوّل هذا المبلغ عبر Whish Money إلى الرقم التالي:</p>
+            <p class="funding-note lang-en">Transfer this amount via Whish Money to the number below:</p>
+            <div class="funding-phone-display" id="whish-phone-display" dir="ltr">—</div>
+          </div>
+          <div class="funding-form-group">
+            <label class="funding-label lang-ar">رقم العملية (Transaction ID)</label>
+            <label class="funding-label lang-en">Transaction ID</label>
+            <input type="text" id="deposit-txn-id" class="funding-input" placeholder="e.g. 626635511" dir="ltr">
+          </div>
+          <div class="funding-form-group">
+            <label class="funding-label lang-ar">صورة الإيصال</label>
+            <label class="funding-label lang-en">Receipt Screenshot</label>
+            <input type="file" id="deposit-receipt" class="funding-input" accept="image/*">
+          </div>
+          <p id="deposit-error" style="color:var(--err);font-size:13px;margin-top:10px;display:none;"></p>
+          <button class="btn-primary" style="margin-top:16px;width:100%;" id="deposit-submit-btn" onclick="submitDeposit()">
+            <span class="lang-ar">إرسال طلب الإيداع</span><span class="lang-en">Submit Deposit Request</span>
+            <span class="loading-spinner" id="deposit-spinner" style="display:none;width:14px;height:14px;border-width:2px;vertical-align:middle;margin-inline-start:8px;"></span>
+          </button>
+        </div>
+
+        <!-- USDT deposit -- still a WhatsApp hand-off for now -->
+        <div id="usdt-deposit-note" style="display:none;margin-top:16px;">
+          <p class="funding-note lang-ar">سنكمل طلب الإيداع عبر USDT معك مباشرة على واتساب.</p>
+          <p class="funding-note lang-en">We'll finish your USDT deposit request with you directly on WhatsApp.</p>
+          <button class="btn-outline" style="margin-top:12px;" onclick="requestFundingWhatsApp('USDT')">
+            <span class="lang-ar">متابعة عبر واتساب</span><span class="lang-en">Continue on WhatsApp</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- WITHDRAW TAB -->
+      <div id="tab-withdraw" style="display:none;margin-top:20px;">
+        <div class="funding-form-group" style="margin-top:0;">
+          <label class="funding-label lang-ar">المبلغ (USD)</label>
+          <label class="funding-label lang-en">Amount (USD)</label>
+          <input type="number" id="withdraw-amount" class="funding-input" placeholder="100" min="1" step="0.01">
+        </div>
+        <div class="funding-form-group">
+          <label class="funding-label lang-ar">طريقة السحب</label>
+          <label class="funding-label lang-en">Withdrawal Method</label>
+          <select id="withdraw-method" class="funding-select" onchange="onWithdrawMethodChange()">
+            <option value="Whish Money">Whish Money</option>
+            <option value="USDT">USDT</option>
+          </select>
+        </div>
+        <div class="funding-form-group" id="withdraw-whish-fields">
+          <label class="funding-label lang-ar">رقم الهاتف لاستلام المبلغ</label>
+          <label class="funding-label lang-en">Phone Number to Receive Funds</label>
+          <input type="text" id="withdraw-phone" class="funding-input" placeholder="+961XXXXXXXX" dir="ltr">
+        </div>
+        <div class="funding-form-group" id="withdraw-usdt-fields" style="display:none;">
+          <label class="funding-label lang-ar">عنوان محفظة USDT</label>
+          <label class="funding-label lang-en">USDT Wallet Address</label>
+          <input type="text" id="withdraw-wallet" class="funding-input" placeholder="T..." dir="ltr">
+          <label class="funding-label lang-ar" style="margin-top:10px;">الشبكة</label>
+          <label class="funding-label lang-en" style="margin-top:10px;">Network</label>
+          <select id="withdraw-network" class="funding-select">
+            <option value="TRC20">TRC20 (Tron)</option>
+            <option value="ERC20">ERC20 (Ethereum)</option>
+            <option value="BEP20">BEP20 (BNB Smart Chain)</option>
+          </select>
+        </div>
+        <p id="withdraw-error" style="color:var(--err);font-size:13px;margin-top:10px;display:none;"></p>
+        <button class="btn-primary" style="margin-top:16px;width:100%;" id="withdraw-submit-btn" onclick="submitWithdrawal()">
+          <span class="lang-ar">إرسال طلب السحب</span><span class="lang-en">Submit Withdrawal Request</span>
+          <span class="loading-spinner" id="withdraw-spinner" style="display:none;width:14px;height:14px;border-width:2px;vertical-align:middle;margin-inline-start:8px;"></span>
+        </button>
       </div>
     </div>
+
+    <!-- Deposit History -->
+    <div class="funding-card">
+      <div class="funding-card-title lang-ar">سجل الإيداعات</div>
+      <div class="funding-card-title lang-en">Deposit History</div>
+      <div id="deposit-history-list" style="margin-top:12px;"></div>
+      <p class="funding-note" id="deposit-history-empty" style="display:none;">
+        <span class="lang-ar">لا توجد إيداعات بعد.</span><span class="lang-en">No deposits yet.</span>
+      </p>
+      <button class="btn-outline" id="deposit-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory('deposit')">
+        <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
+      </button>
+    </div>
+
+    <!-- Withdrawal History -->
+    <div class="funding-card">
+      <div class="funding-card-title lang-ar">سجل السحوبات</div>
+      <div class="funding-card-title lang-en">Withdrawal History</div>
+      <div id="withdraw-history-list" style="margin-top:12px;"></div>
+      <p class="funding-note" id="withdraw-history-empty" style="display:none;">
+        <span class="lang-ar">لا توجد سحوبات بعد.</span><span class="lang-en">No withdrawals yet.</span>
+      </p>
+      <button class="btn-outline" id="withdraw-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory('withdraw')">
+        <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
+      </button>
+    </div>
+
+  </div> <!-- /card-active -->
 
   </div>
 </div>
@@ -619,7 +763,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, updateDoc, serverTimestamp, collection, addDoc, query, where, orderBy, limit, startAfter, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCgijCTp0ZKs9gmbZ9W-JAA7Z_R9dF6f3I",
@@ -634,6 +779,7 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -748,6 +894,8 @@
       } else {
         fundingPicker.style.display = 'none';
       }
+      loadHistory('deposit', true);
+      loadHistory('withdraw', true);
     }
 
     // Request MT5 function — also used from the active view to request a
@@ -776,20 +924,326 @@
       }
     };
 
-    // Funding request — no automated deposits yet, so this just hands the
-    // client straight to WhatsApp with everything support needs pre-filled.
-    window.requestFunding = function(method) {
+    // ── FUND & WITHDRAW ──
+    function getSelectedFundingAccount() {
       const accounts = (data.mt5_accounts && data.mt5_accounts.length)
         ? data.mt5_accounts
         : (data.mt5_login ? [{ login: data.mt5_login }] : []);
-      // With multiple accounts, use whichever one they picked in the
-      // dropdown rather than dumping every login into the message.
       const fundingSelect = document.getElementById('funding-account-select');
-      const selectedLogin = accounts.length > 1 && fundingSelect && fundingSelect.value
+      return accounts.length > 1 && fundingSelect && fundingSelect.value
         ? fundingSelect.value
-        : (accounts[0] ? accounts[0].login : '—');
+        : (accounts[0] ? accounts[0].login : null);
+    }
+
+    // USDT deposits are still a WhatsApp hand-off for now -- only Whish
+    // Money deposits go through the full receipt-review flow below.
+    window.requestFundingWhatsApp = function(method) {
+      const selectedLogin = getSelectedFundingAccount() || '—';
       const message = `Hi, I'd like to fund my MT5 account.\nName: ${data.fullname || ''}\nMT5 Login: ${selectedLogin}\nReferral Code: ${data.referral_code || ''}\nFunding Method: ${method}`;
       window.open(`https://wa.me/96170906509?text=${encodeURIComponent(message)}`, '_blank');
+    };
+
+    let whishPhoneNumber = '';
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', 'whish_money'));
+      whishPhoneNumber = settingsSnap.exists() ? (settingsSnap.data().phone_number || '') : '';
+    } catch (e) { console.log('Could not load Whish Money settings:', e); }
+
+    window.showFundingTab = function(tab) {
+      document.getElementById('tab-btn-deposit').classList.toggle('active', tab === 'deposit');
+      document.getElementById('tab-btn-withdraw').classList.toggle('active', tab === 'withdraw');
+      document.getElementById('tab-deposit').style.display = tab === 'deposit' ? 'block' : 'none';
+      document.getElementById('tab-withdraw').style.display = tab === 'withdraw' ? 'block' : 'none';
+    };
+
+    window.selectDepositMethod = function(method) {
+      document.getElementById('whish-deposit-form').style.display = method === 'Whish Money' ? 'block' : 'none';
+      document.getElementById('usdt-deposit-note').style.display = method === 'USDT' ? 'block' : 'none';
+      if (method === 'Whish Money') {
+        document.getElementById('whish-phone-display').textContent = whishPhoneNumber || '—';
+      }
+    };
+
+    window.submitDeposit = async function() {
+      const errEl = document.getElementById('deposit-error');
+      errEl.style.display = 'none';
+      const isAr = !document.getElementById('body').classList.contains('en');
+
+      const amount = parseFloat(document.getElementById('deposit-amount').value);
+      const txnId = document.getElementById('deposit-txn-id').value.trim();
+      const fileInput = document.getElementById('deposit-receipt');
+      const file = fileInput.files[0];
+      const selectedLogin = getSelectedFundingAccount();
+
+      if (!amount || amount <= 0) {
+        errEl.textContent = isAr ? 'الرجاء إدخال مبلغ صحيح.' : 'Please enter a valid amount.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!txnId) {
+        errEl.textContent = isAr ? 'الرجاء إدخال رقم العملية.' : 'Please enter the transaction ID.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!file) {
+        errEl.textContent = isAr ? 'الرجاء رفع صورة الإيصال.' : 'Please upload the receipt screenshot.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('deposit-submit-btn');
+      const spinner = document.getElementById('deposit-spinner');
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+
+      try {
+        const fileRef = ref(storage, `funding_receipts/${user.uid}/${Date.now()}_${file.name}`);
+        await uploadBytes(fileRef, file);
+        const receiptUrl = await getDownloadURL(fileRef);
+
+        await addDoc(collection(db, 'funding_requests'), {
+          uid: user.uid,
+          fullname: data.fullname || '',
+          email: user.email,
+          mt5_login: selectedLogin,
+          method: 'Whish Money',
+          claimed_amount: amount,
+          approved_amount: null,
+          transaction_id: txnId,
+          receipt_url: receiptUrl,
+          status: 'pending',
+          rejection_reason: null,
+          resolved_by: null,
+          resolved_at: null,
+          created_at: serverTimestamp()
+        });
+
+        try {
+          await emailjs.send('service_0oshg5a', 'template_k00znup', {
+            to_email: 'support@harmonyfx.me',
+            reply_to: user.email,
+            subject: 'New Deposit Request — ' + (data.fullname || ''),
+            message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nMT5 Login: ${selectedLogin}\nAmount: $${amount}\nTransaction ID: ${txnId}\n\nLogin to review: https://staff.tratech.me/`
+          });
+        } catch (emailErr) { console.log('Deposit notification failed:', emailErr); }
+
+        document.getElementById('deposit-amount').value = '';
+        document.getElementById('deposit-txn-id').value = '';
+        fileInput.value = '';
+        document.getElementById('whish-deposit-form').style.display = 'none';
+        alert(isAr ? 'تم إرسال طلب الإيداع! سنراجعه قريباً.' : 'Deposit request submitted! We will review it shortly.');
+        loadHistory('deposit', true);
+      } catch (e) {
+        console.error(e);
+        errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+      }
+    };
+
+    window.onWithdrawMethodChange = function() {
+      const method = document.getElementById('withdraw-method').value;
+      document.getElementById('withdraw-whish-fields').style.display = method === 'Whish Money' ? 'block' : 'none';
+      document.getElementById('withdraw-usdt-fields').style.display = method === 'USDT' ? 'block' : 'none';
+    };
+
+    window.submitWithdrawal = async function() {
+      const errEl = document.getElementById('withdraw-error');
+      errEl.style.display = 'none';
+      const isAr = !document.getElementById('body').classList.contains('en');
+
+      const amount = parseFloat(document.getElementById('withdraw-amount').value);
+      const method = document.getElementById('withdraw-method').value;
+      const selectedLogin = getSelectedFundingAccount();
+
+      if (!amount || amount <= 0) {
+        errEl.textContent = isAr ? 'الرجاء إدخال مبلغ صحيح.' : 'Please enter a valid amount.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      let destination = {};
+      if (method === 'Whish Money') {
+        const phone = document.getElementById('withdraw-phone').value.trim();
+        if (!phone) {
+          errEl.textContent = isAr ? 'الرجاء إدخال رقم الهاتف.' : 'Please enter the phone number.';
+          errEl.style.display = 'block';
+          return;
+        }
+        destination = { phone };
+      } else {
+        const wallet = document.getElementById('withdraw-wallet').value.trim();
+        const network = document.getElementById('withdraw-network').value;
+        if (!wallet) {
+          errEl.textContent = isAr ? 'الرجاء إدخال عنوان المحفظة.' : 'Please enter the wallet address.';
+          errEl.style.display = 'block';
+          return;
+        }
+        destination = { wallet, network };
+      }
+
+      const btn = document.getElementById('withdraw-submit-btn');
+      const spinner = document.getElementById('withdraw-spinner');
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+
+      try {
+        await addDoc(collection(db, 'withdrawal_requests'), {
+          uid: user.uid,
+          fullname: data.fullname || '',
+          email: user.email,
+          mt5_login: selectedLogin,
+          method,
+          amount,
+          destination,
+          completion_receipt_url: null,
+          status: 'pending',
+          rejection_reason: null,
+          resolved_by: null,
+          resolved_at: null,
+          created_at: serverTimestamp()
+        });
+
+        try {
+          await emailjs.send('service_0oshg5a', 'template_k00znup', {
+            to_email: 'support@harmonyfx.me',
+            reply_to: user.email,
+            subject: 'New Withdrawal Request — ' + (data.fullname || ''),
+            message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nMT5 Login: ${selectedLogin}\nAmount: $${amount}\nMethod: ${method}\nDestination: ${JSON.stringify(destination)}\n\nLogin to review: https://staff.tratech.me/`
+          });
+        } catch (emailErr) { console.log('Withdrawal notification failed:', emailErr); }
+
+        document.getElementById('withdraw-amount').value = '';
+        document.getElementById('withdraw-phone').value = '';
+        document.getElementById('withdraw-wallet').value = '';
+        alert(isAr ? 'تم إرسال طلب السحب! سنعالجه قريباً.' : 'Withdrawal request submitted! We will process it shortly.');
+        loadHistory('withdraw', true);
+      } catch (e) {
+        console.error(e);
+        errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+      }
+    };
+
+    // ── TRANSACTION HISTORY (paginated, receipts shown as a link rather
+    // than loaded inline, so a client with a long history stays fast) ──
+    const HISTORY_PAGE_SIZE = 10;
+    let depositHistoryCursor = null, depositHistoryDone = false;
+    let withdrawHistoryCursor = null, withdrawHistoryDone = false;
+
+    function formatHistoryDate(ts) {
+      if (!ts || !ts.seconds) return '';
+      return new Date(ts.seconds * 1000).toLocaleString('en-GB', { timeZone: 'Asia/Beirut', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function historyStatusBadge(kind, status) {
+      const isAr = !document.getElementById('body').classList.contains('en');
+      const maps = {
+        deposit: {
+          pending: { cls: 'pending', ar: 'قيد المراجعة', en: 'Pending Review' },
+          sent_to_googlecell: { cls: 'processing', ar: 'قيد التأكيد', en: 'Confirming' },
+          deposited: { cls: 'done', ar: 'تم الإيداع', en: 'Deposited' },
+          rejected: { cls: 'rejected', ar: 'مرفوض', en: 'Rejected' },
+        },
+        withdraw: {
+          pending: { cls: 'pending', ar: 'قيد المراجعة', en: 'Pending Review' },
+          balance_deducted: { cls: 'processing', ar: 'قيد المعالجة', en: 'Processing' },
+          sent_to_googlecell: { cls: 'processing', ar: 'قيد التحويل', en: 'Transferring' },
+          completed: { cls: 'done', ar: 'مكتمل', en: 'Completed' },
+          rejected: { cls: 'rejected', ar: 'مرفوض', en: 'Rejected' },
+        },
+      };
+      const s = maps[kind][status] || maps[kind].pending;
+      return `<span class="history-status ${s.cls}">${isAr ? s.ar : s.en}</span>`;
+    }
+
+    async function loadHistory(type, reset) {
+      const isDeposit = type === 'deposit';
+      const collectionName = isDeposit ? 'funding_requests' : 'withdrawal_requests';
+      const listEl = document.getElementById(isDeposit ? 'deposit-history-list' : 'withdraw-history-list');
+      const moreBtn = document.getElementById(isDeposit ? 'deposit-history-more' : 'withdraw-history-more');
+      const emptyEl = document.getElementById(isDeposit ? 'deposit-history-empty' : 'withdraw-history-empty');
+      const isAr = !document.getElementById('body').classList.contains('en');
+
+      if (reset) {
+        listEl.innerHTML = '';
+        if (isDeposit) { depositHistoryCursor = null; depositHistoryDone = false; }
+        else { withdrawHistoryCursor = null; withdrawHistoryDone = false; }
+      }
+
+      const cursor = isDeposit ? depositHistoryCursor : withdrawHistoryCursor;
+      const base = [collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc')];
+      const q = cursor
+        ? query(...base, startAfter(cursor), limit(HISTORY_PAGE_SIZE))
+        : query(...base, limit(HISTORY_PAGE_SIZE));
+
+      let snap;
+      try {
+        snap = await getDocs(q);
+      } catch (e) {
+        console.error(`Failed to load ${type} history:`, e);
+        return;
+      }
+
+      if (snap.empty && reset) {
+        emptyEl.style.display = 'block';
+        moreBtn.style.display = 'none';
+        return;
+      }
+      emptyEl.style.display = 'none';
+
+      snap.forEach(d => {
+        const r = d.data();
+        let row;
+        if (isDeposit) {
+          const amountLine = (r.approved_amount != null && r.approved_amount !== r.claimed_amount)
+            ? `$${r.claimed_amount} → $${r.approved_amount}`
+            : `$${r.claimed_amount}`;
+          row = `
+            <div class="history-row">
+              <div>
+                <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')}</div>
+                <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                ${historyStatusBadge('deposit', r.status)}
+                ${r.receipt_url ? `<a class="history-link" href="${escapeHtml(r.receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+              </div>
+            </div>`;
+        } else {
+          row = `
+            <div class="history-row">
+              <div>
+                <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')}</div>
+                <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                ${historyStatusBadge('withdraw', r.status)}
+                ${r.completion_receipt_url ? `<a class="history-link" href="${escapeHtml(r.completion_receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+              </div>
+            </div>`;
+        }
+        listEl.insertAdjacentHTML('beforeend', row);
+      });
+
+      const lastDoc = snap.docs[snap.docs.length - 1];
+      if (isDeposit) {
+        if (lastDoc) depositHistoryCursor = lastDoc;
+        depositHistoryDone = snap.size < HISTORY_PAGE_SIZE;
+      } else {
+        if (lastDoc) withdrawHistoryCursor = lastDoc;
+        withdrawHistoryDone = snap.size < HISTORY_PAGE_SIZE;
+      }
+      moreBtn.style.display = (isDeposit ? depositHistoryDone : withdrawHistoryDone) ? 'none' : 'block';
+    }
+
+    window.loadMoreHistory = function(type) {
+      loadHistory(type, false);
     };
 
     // Logout
