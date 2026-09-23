@@ -350,6 +350,19 @@
   .history-link { color: var(--gold-lt); font-size: 11px; text-decoration: none; font-family: 'Inter', sans-serif; }
   .history-link:hover { text-decoration: underline; }
 
+  .txn-banner {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; margin-bottom: 12px;
+    border: 1px solid var(--line); font-size: 13px; line-height: 1.6;
+  }
+  .txn-banner.success { background: var(--green-dim); border-color: rgba(111,191,143,0.3); color: var(--green); }
+  .txn-banner.error { background: rgba(232,131,122,0.1); border-color: rgba(232,131,122,0.25); color: var(--err); }
+  .txn-banner-close {
+    margin-inline-start: auto; background: none; border: none; color: inherit;
+    font-size: 16px; cursor: pointer; line-height: 1; opacity: 0.7; flex-shrink: 0;
+  }
+  .txn-banner-close:hover { opacity: 1; }
+
   .funding-soon {
     position: absolute;
     top: 16px;
@@ -462,6 +475,9 @@
     <div class="portal-greeting">
       <h1 id="portal-title">بوابتي / My Portal</h1>
     </div>
+
+    <!-- Dismissible notification banners for resolved deposit/withdrawal requests -->
+    <div id="txn-banners"></div>
 
     <!-- STATUS: email not verified -->
     <div class="status-card" id="card-not-verified" style="display:none;">
@@ -665,7 +681,8 @@
     <div class="funding-card">
       <div class="funding-card-title lang-ar">سجل الإيداعات</div>
       <div class="funding-card-title lang-en">Deposit History</div>
-      <div id="deposit-history-list" style="margin-top:12px;"></div>
+      <div id="deposit-history-page1" style="margin-top:12px;"></div>
+      <div id="deposit-history-more-pages"></div>
       <p class="funding-note" id="deposit-history-empty" style="display:none;">
         <span class="lang-ar">لا توجد إيداعات بعد.</span><span class="lang-en">No deposits yet.</span>
       </p>
@@ -678,7 +695,8 @@
     <div class="funding-card">
       <div class="funding-card-title lang-ar">سجل السحوبات</div>
       <div class="funding-card-title lang-en">Withdrawal History</div>
-      <div id="withdraw-history-list" style="margin-top:12px;"></div>
+      <div id="withdraw-history-page1" style="margin-top:12px;"></div>
+      <div id="withdraw-history-more-pages"></div>
       <p class="funding-note" id="withdraw-history-empty" style="display:none;">
         <span class="lang-ar">لا توجد سحوبات بعد.</span><span class="lang-en">No withdrawals yet.</span>
       </p>
@@ -763,7 +781,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, updateDoc, serverTimestamp, collection, addDoc, query, where, orderBy, limit, startAfter, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, updateDoc, serverTimestamp, collection, addDoc, query, where, orderBy, limit, startAfter, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
   const firebaseConfig = {
@@ -1135,6 +1153,68 @@
     const HISTORY_PAGE_SIZE = 10;
     let depositHistoryCursor = null, depositHistoryDone = false;
     let withdrawHistoryCursor = null, withdrawHistoryDone = false;
+    let depositPage1Unsub = null, withdrawPage1Unsub = null;
+
+    // ── DISMISSIBLE NOTIFICATION BANNERS ──
+    // Dismiss state lives in localStorage (per browser, not per account) --
+    // fine for a convenience banner, not something that needs to survive a
+    // device switch. The underlying status itself is still always correct
+    // in Firestore/the history list regardless of whether a banner was seen.
+    function getDismissedBannerIds() {
+      try { return JSON.parse(localStorage.getItem('dismissed_txn_banners') || '[]'); }
+      catch (e) { return []; }
+    }
+    function markBannerDismissed(id) {
+      try {
+        const ids = getDismissedBannerIds();
+        if (!ids.includes(id)) ids.push(id);
+        localStorage.setItem('dismissed_txn_banners', JSON.stringify(ids));
+      } catch (e) { /* localStorage unavailable -- banner just won't persist as dismissed */ }
+    }
+    window.dismissTxnBanner = function(id) {
+      markBannerDismissed(id);
+      const el = document.getElementById(`txn-banner-${id}`);
+      if (el) el.remove();
+    };
+
+    function bannerMessageFor(type, r) {
+      const isAr = !document.getElementById('body').classList.contains('en');
+      if (type === 'deposit') {
+        if (r.status === 'deposited') {
+          const amt = r.approved_amount != null ? r.approved_amount : r.claimed_amount;
+          return { kind: 'success', text: isAr ? `تم تأكيد إيداعك بمبلغ $${amt}.` : `Your deposit of $${amt} has been confirmed.` };
+        }
+        if (r.status === 'rejected') {
+          return { kind: 'error', text: isAr ? `تم رفض طلب الإيداع الخاص بك. السبب: ${r.rejection_reason || ''}` : `Your deposit request was rejected. Reason: ${r.rejection_reason || ''}` };
+        }
+      } else {
+        if (r.status === 'completed') {
+          return { kind: 'success', text: isAr ? `تم إتمام عملية سحبك بمبلغ $${r.amount}.` : `Your withdrawal of $${r.amount} has been completed.` };
+        }
+        if (r.status === 'rejected') {
+          return { kind: 'error', text: isAr ? `تم رفض طلب السحب الخاص بك. السبب: ${r.rejection_reason || ''}` : `Your withdrawal request was rejected. Reason: ${r.rejection_reason || ''}` };
+        }
+      }
+      return null;
+    }
+
+    function updateTxnBanners(type, docs) {
+      const dismissed = getDismissedBannerIds();
+      docs.forEach(d => {
+        const r = d.data();
+        const id = `${type}-${d.id}`;
+        if (dismissed.includes(id)) return;
+        const msg = bannerMessageFor(type, r);
+        if (!msg) return;
+        if (document.getElementById(`txn-banner-${id}`)) return;
+        document.getElementById('txn-banners').insertAdjacentHTML('beforeend', `
+          <div class="txn-banner ${msg.kind}" id="txn-banner-${id}">
+            <span>${msg.text}</span>
+            <button class="txn-banner-close" onclick="dismissTxnBanner('${id}')">×</button>
+          </div>
+        `);
+      });
+    }
 
     function formatHistoryDate(ts) {
       if (!ts || !ts.seconds) return '';
@@ -1162,74 +1242,100 @@
       return `<span class="history-status ${s.cls}">${isAr ? s.ar : s.en}</span>`;
     }
 
-    async function loadHistory(type, reset) {
+    function renderHistoryRow(type, r) {
+      const isAr = !document.getElementById('body').classList.contains('en');
+      if (type === 'deposit') {
+        const amountLine = (r.approved_amount != null && r.approved_amount !== r.claimed_amount)
+          ? `$${r.claimed_amount} → $${r.approved_amount}`
+          : `$${r.claimed_amount}`;
+        return `
+          <div class="history-row">
+            <div>
+              <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')}</div>
+              <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${historyStatusBadge('deposit', r.status)}
+              ${r.receipt_url ? `<a class="history-link" href="${escapeHtml(r.receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="history-row">
+          <div>
+            <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')}</div>
+            <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${historyStatusBadge('withdraw', r.status)}
+            ${r.completion_receipt_url ? `<a class="history-link" href="${escapeHtml(r.completion_receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+          </div>
+        </div>`;
+    }
+
+    // Only the first page is ever (re)initialized here, as a live listener --
+    // it doubles as the notification source (see updateTxnBanners). Older
+    // pages are one-time fetches via loadMoreHistory, since resolved history
+    // from further back isn't going to change again.
+    function loadHistory(type, reset) {
+      if (!reset) return;
       const isDeposit = type === 'deposit';
       const collectionName = isDeposit ? 'funding_requests' : 'withdrawal_requests';
-      const listEl = document.getElementById(isDeposit ? 'deposit-history-list' : 'withdraw-history-list');
+      const page1El = document.getElementById(isDeposit ? 'deposit-history-page1' : 'withdraw-history-page1');
+      const morePagesEl = document.getElementById(isDeposit ? 'deposit-history-more-pages' : 'withdraw-history-more-pages');
       const moreBtn = document.getElementById(isDeposit ? 'deposit-history-more' : 'withdraw-history-more');
       const emptyEl = document.getElementById(isDeposit ? 'deposit-history-empty' : 'withdraw-history-empty');
-      const isAr = !document.getElementById('body').classList.contains('en');
 
-      if (reset) {
-        listEl.innerHTML = '';
-        if (isDeposit) { depositHistoryCursor = null; depositHistoryDone = false; }
-        else { withdrawHistoryCursor = null; withdrawHistoryDone = false; }
+      morePagesEl.innerHTML = '';
+      if (isDeposit) {
+        depositHistoryCursor = null; depositHistoryDone = false;
+        if (depositPage1Unsub) depositPage1Unsub();
+      } else {
+        withdrawHistoryCursor = null; withdrawHistoryDone = false;
+        if (withdrawPage1Unsub) withdrawPage1Unsub();
       }
 
-      const cursor = isDeposit ? depositHistoryCursor : withdrawHistoryCursor;
-      const base = [collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc')];
-      const q = cursor
-        ? query(...base, startAfter(cursor), limit(HISTORY_PAGE_SIZE))
-        : query(...base, limit(HISTORY_PAGE_SIZE));
+      const q = query(collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc'), limit(HISTORY_PAGE_SIZE));
+      const unsub = onSnapshot(q, (snap) => {
+        emptyEl.style.display = (snap.empty && !morePagesEl.innerHTML) ? 'block' : 'none';
+        page1El.innerHTML = snap.docs.map(d => renderHistoryRow(type, d.data())).join('');
+        updateTxnBanners(type, snap.docs);
 
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        if (isDeposit) {
+          if (lastDoc) depositHistoryCursor = lastDoc;
+          depositHistoryDone = snap.size < HISTORY_PAGE_SIZE;
+        } else {
+          if (lastDoc) withdrawHistoryCursor = lastDoc;
+          withdrawHistoryDone = snap.size < HISTORY_PAGE_SIZE;
+        }
+        moreBtn.style.display = (isDeposit ? depositHistoryDone : withdrawHistoryDone) ? 'none' : 'block';
+      }, (err) => {
+        console.error(`Failed to load ${type} history:`, err);
+      });
+
+      if (isDeposit) depositPage1Unsub = unsub;
+      else withdrawPage1Unsub = unsub;
+    }
+
+    window.loadMoreHistory = async function(type) {
+      const isDeposit = type === 'deposit';
+      const collectionName = isDeposit ? 'funding_requests' : 'withdrawal_requests';
+      const morePagesEl = document.getElementById(isDeposit ? 'deposit-history-more-pages' : 'withdraw-history-more-pages');
+      const moreBtn = document.getElementById(isDeposit ? 'deposit-history-more' : 'withdraw-history-more');
+      const cursor = isDeposit ? depositHistoryCursor : withdrawHistoryCursor;
+      if (!cursor) return;
+
+      const q = query(collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc'), startAfter(cursor), limit(HISTORY_PAGE_SIZE));
       let snap;
       try {
         snap = await getDocs(q);
       } catch (e) {
-        console.error(`Failed to load ${type} history:`, e);
+        console.error(`Failed to load more ${type} history:`, e);
         return;
       }
 
-      if (snap.empty && reset) {
-        emptyEl.style.display = 'block';
-        moreBtn.style.display = 'none';
-        return;
-      }
-      emptyEl.style.display = 'none';
-
-      snap.forEach(d => {
-        const r = d.data();
-        let row;
-        if (isDeposit) {
-          const amountLine = (r.approved_amount != null && r.approved_amount !== r.claimed_amount)
-            ? `$${r.claimed_amount} → $${r.approved_amount}`
-            : `$${r.claimed_amount}`;
-          row = `
-            <div class="history-row">
-              <div>
-                <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')}</div>
-                <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;">
-                ${historyStatusBadge('deposit', r.status)}
-                ${r.receipt_url ? `<a class="history-link" href="${escapeHtml(r.receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
-              </div>
-            </div>`;
-        } else {
-          row = `
-            <div class="history-row">
-              <div>
-                <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')}</div>
-                <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;">
-                ${historyStatusBadge('withdraw', r.status)}
-                ${r.completion_receipt_url ? `<a class="history-link" href="${escapeHtml(r.completion_receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
-              </div>
-            </div>`;
-        }
-        listEl.insertAdjacentHTML('beforeend', row);
-      });
+      morePagesEl.insertAdjacentHTML('beforeend', snap.docs.map(d => renderHistoryRow(type, d.data())).join(''));
 
       const lastDoc = snap.docs[snap.docs.length - 1];
       if (isDeposit) {
@@ -1240,10 +1346,6 @@
         withdrawHistoryDone = snap.size < HISTORY_PAGE_SIZE;
       }
       moreBtn.style.display = (isDeposit ? depositHistoryDone : withdrawHistoryDone) ? 'none' : 'block';
-    }
-
-    window.loadMoreHistory = function(type) {
-      loadHistory(type, false);
     };
 
     // Logout
