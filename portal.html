@@ -832,6 +832,7 @@
     let historyCursor = { deposit: null, withdraw: null };
     let historyDone = { deposit: false, withdraw: false };
     let historyBuffer = [];
+    let historyLiveDocs = { deposit: [], withdraw: [] };
     let depositPage1Unsub = null, withdrawPage1Unsub = null;
     // The live listeners always run (they're the notification source), but
     // the visible list only ever renders once the client explicitly asks
@@ -1222,7 +1223,8 @@
     // merging client-side is sufficient -- no separate "top 10 overall"
     // query is possible across two collections anyway. Receipts are shown
     // as a link rather than loaded inline, so a long history stays fast.
-    let historyLiveDocs = { deposit: [], withdraw: [] };
+    // (historyLiveDocs itself is declared up top with the other history
+    // state, for the same TDZ reason explained there.)
 
     // A soft ascending major-third chime (C6, E6, G6) with a gentle
     // attack/release envelope -- a pleasant "good news" tone rather than
