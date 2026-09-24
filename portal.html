@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -266,7 +266,7 @@
     margin-bottom: 8px;
     font-family: 'Inter', sans-serif;
   }
-  .referral-card-sub { font-size: 13px; color: var(--steel); margin-bottom: 20px; font-weight: 300; }
+  .referral-card-sub { font-size: 14px; color: var(--gold-lt); margin-bottom: 20px; font-weight: 600; }
   .referral-link-box {
     display: flex;
     align-items: center;
@@ -350,13 +350,21 @@
   .history-link { color: var(--gold-lt); font-size: 11px; text-decoration: none; font-family: 'Inter', sans-serif; }
   .history-link:hover { text-decoration: underline; }
 
+  /* Floating instead of inline at the top of the page -- these auto-dismiss
+     after 30s anyway, so pinning them where a scrolled-down client will
+     actually see them matters more than keeping them in normal document flow. */
+  #txn-banners {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    width: calc(100% - 32px); max-width: 480px; z-index: 300;
+  }
   .txn-banner {
     display: flex; align-items: flex-start; gap: 12px;
     padding: 14px 16px; margin-bottom: 12px;
     border: 1px solid var(--line); font-size: 13px; line-height: 1.6;
+    background: var(--navy-lt); box-shadow: 0 6px 20px rgba(0,0,0,0.35);
   }
-  .txn-banner.success { background: var(--green-dim); border-color: rgba(111,191,143,0.3); color: var(--green); }
-  .txn-banner.error { background: rgba(232,131,122,0.1); border-color: rgba(232,131,122,0.25); color: var(--err); }
+  .txn-banner.success { background: var(--green-dim); border-color: rgba(111,191,143,0.3); color: var(--green); backdrop-filter: blur(6px); }
+  .txn-banner.error { background: rgba(232,131,122,0.1); border-color: rgba(232,131,122,0.25); color: var(--err); backdrop-filter: blur(6px); }
   .txn-banner-close {
     margin-inline-start: auto; background: none; border: none; color: inherit;
     font-size: 16px; cursor: pointer; line-height: 1; opacity: 0.7; flex-shrink: 0;
@@ -420,24 +428,9 @@
     .referral-stats { flex-direction: column; gap: 16px; }
   }
 
-  .whatsapp-float {
-    position: fixed; bottom: 20px; right: 20px; z-index: 200;
-    display: flex; align-items: center; gap: 8px;
-    background: #25D366; color: #fff; text-decoration: none;
-    padding: 10px 16px; border-radius: 30px;
-    font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-    transition: transform 0.15s;
-  }
-  .whatsapp-float:hover { transform: scale(1.05); }
-  .whatsapp-float svg { width: 20px; height: 20px; flex-shrink: 0; }
-  @media (max-width: 600px) {
-    .whatsapp-float { padding: 8px 12px; font-size: 12px; bottom: 14px; right: 14px; }
-    .whatsapp-float svg { width: 18px; height: 18px; }
-  }
 </style>
 </head>
-<body id="body">
+<body id="body" class="en">
 
 <nav>
   <a href="portal.html" class="nav-logo"><img src="harmony-logo-02.png" alt="HarmonyFX"></a>
@@ -449,8 +442,8 @@
       <span id="nav-email" dir="ltr" style="color:var(--steel);font-size:11px;margin-inline-start:8px;"></span>
     </div>
     <div class="lang-toggle">
-      <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
-      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-ar" onclick="setLang('ar')">ع</button>
+      <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
     </div>
     <button class="nav-logout" onclick="logout()">
       <span class="lang-ar">خروج</span>
@@ -602,8 +595,17 @@
       <!-- DEPOSIT TAB -->
       <div id="tab-deposit" style="margin-top:20px;">
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="funding-method-btn" onclick="selectDepositMethod('Whish Money')">Whish Money</button>
-          <button class="funding-method-btn" onclick="selectDepositMethod('USDT')">USDT</button>
+          <button class="funding-method-btn" style="display:flex;align-items:center;justify-content:center;gap:8px;" onclick="selectDepositMethod('Whish Money')">
+            <img src="whish-money-logo.png" alt="" style="height:22px;width:auto;">
+            Whish Money
+          </button>
+          <button class="funding-method-btn" style="display:flex;align-items:center;justify-content:center;gap:8px;" onclick="selectDepositMethod('USDT')">
+            <svg viewBox="0 0 32 32" style="height:22px;width:22px;flex-shrink:0;" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="16" fill="#26A17B"/>
+              <path fill="#fff" d="M17.5 17.15v-.01c-.11.01-.68.04-1.94.04-1.01 0-1.72-.03-1.97-.04v.02c-3.9-.17-6.81-.86-6.81-1.68 0-.83 2.91-1.51 6.81-1.69v2.7c.25.02.98.06 1.99.06 1.2 0 1.81-.05 1.92-.06v-2.69c3.89.17 6.79.86 6.79 1.68 0 .82-2.9 1.5-6.79 1.67zm0-3.66v-2.41h5.43V7.5H9.11v3.58h5.43v2.41c-4.41.2-7.73 1.07-7.73 2.12 0 1.05 3.32 1.92 7.73 2.12v7.6h2.96v-7.6c4.4-.2 7.72-1.07 7.72-2.12 0-1.05-3.32-1.92-7.72-2.12z"/>
+            </svg>
+            USDT
+          </button>
         </div>
 
         <!-- Whish Money deposit form -->
@@ -708,6 +710,19 @@
 
   </div> <!-- /card-active -->
 
+  <!-- Support CTA -- a static section instead of a floating bubble that
+       could sit over content or get missed on scroll. -->
+  <div class="funding-card" style="text-align:center;">
+    <p style="font-size:13px;color:var(--steel);line-height:1.8;margin-bottom:14px;">
+      <span class="lang-ar">فريق خدمة العملاء لدينا جاهز لمساعدتك في أي وقت. إذا كان لديك أي استفسار، لا تتردد في التواصل معنا عبر واتساب.</span>
+      <span class="lang-en">Our customer service team is happy to help with any questions you may have — feel free to reach out to us on WhatsApp.</span>
+    </p>
+    <a href="https://wa.me/96170906509" target="_blank" rel="noopener" class="btn-outline" style="display:inline-flex;align-items:center;gap:10px;">
+      <svg viewBox="0 0 32 32" fill="currentColor" style="width:18px;height:18px;flex-shrink:0;" xmlns="http://www.w3.org/2000/svg"><path d="M16.001 3C9.101 3 3.5 8.6 3.5 15.5c0 2.3.63 4.46 1.72 6.32L3 29l7.36-2.17a12.42 12.42 0 0 0 5.64 1.37h.005c6.9 0 12.5-5.6 12.5-12.5S22.9 3 16.001 3zm7.34 17.86c-.31.87-1.53 1.6-2.5 1.8-.66.14-1.53.25-4.44-.95-3.73-1.54-6.13-5.33-6.32-5.58-.19-.25-1.5-2-1.5-3.8 0-1.8.94-2.68 1.28-3.05.31-.34.68-.42.9-.42.23 0 .45.002.65.012.21.01.49-.08.76.58.31.75 1.05 2.55 1.14 2.73.09.19.15.4.03.65-.12.25-.19.4-.37.62-.19.22-.4.5-.57.67-.19.19-.39.4-.17.78.22.38.98 1.62 2.11 2.63 1.45 1.29 2.67 1.7 3.05 1.89.38.19.6.16.82-.1.22-.25.94-1.1 1.19-1.48.25-.38.5-.31.84-.19.34.12 2.15 1.02 2.52 1.2.37.19.62.28.71.44.09.15.09.85-.22 1.72z"/></svg>
+      <span dir="ltr"><span class="lang-ar">تواصل معنا على واتساب</span><span class="lang-en">Chat with us on WhatsApp</span> · +961 70 906 509</span>
+    </a>
+  </div>
+
   </div>
 </div>
 
@@ -734,11 +749,11 @@
     try { localStorage.setItem('preferred_lang', lang); } catch (e) { /* localStorage unavailable -- just won't persist */ }
   }
 
-  // Restore the last-chosen language on load instead of always defaulting
-  // back to Arabic.
+  // English is the default for a first-time visitor -- only override to
+  // Arabic if that's what they explicitly chose last time.
   try {
     const savedLang = localStorage.getItem('preferred_lang');
-    if (savedLang === 'en') setLang('en');
+    if (savedLang === 'ar') setLang('ar');
   } catch (e) { /* localStorage unavailable -- stays on the default */ }
 
   function escapeHtml(str) {
@@ -1518,11 +1533,6 @@
     };
   });
 </script>
-
-<a href="https://wa.me/96170906509" target="_blank" rel="noopener" class="whatsapp-float" aria-label="Contact us on WhatsApp">
-  <svg viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M16.001 3C9.101 3 3.5 8.6 3.5 15.5c0 2.3.63 4.46 1.72 6.32L3 29l7.36-2.17a12.42 12.42 0 0 0 5.64 1.37h.005c6.9 0 12.5-5.6 12.5-12.5S22.9 3 16.001 3zm7.34 17.86c-.31.87-1.53 1.6-2.5 1.8-.66.14-1.53.25-4.44-.95-3.73-1.54-6.13-5.33-6.32-5.58-.19-.25-1.5-2-1.5-3.8 0-1.8.94-2.68 1.28-3.05.31-.34.68-.42.9-.42.23 0 .45.002.65.012.21.01.49-.08.76.58.31.75 1.05 2.55 1.14 2.73.09.19.15.4.03.65-.12.25-.19.4-.37.62-.19.22-.4.5-.57.67-.19.19-.39.4-.17.78.22.38.98 1.62 2.11 2.63 1.45 1.29 2.67 1.7 3.05 1.89.38.19.6.16.82-.1.22-.25.94-1.1 1.19-1.48.25-.38.5-.31.84-.19.34.12 2.15 1.02 2.52 1.2.37.19.62.28.71.44.09.15.09.85-.22 1.72z"/></svg>
-  <span dir="ltr">+961 70 906 509</span>
-</a>
 
 </body>
 </html>
