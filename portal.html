@@ -677,30 +677,16 @@
       </div>
     </div>
 
-    <!-- Deposit History -->
+    <!-- Transaction History (deposits + withdrawals merged, newest first) -->
     <div class="funding-card">
-      <div class="funding-card-title lang-ar">سجل الإيداعات</div>
-      <div class="funding-card-title lang-en">Deposit History</div>
-      <div id="deposit-history-page1" style="margin-top:12px;"></div>
-      <div id="deposit-history-more-pages"></div>
-      <p class="funding-note" id="deposit-history-empty" style="display:none;">
-        <span class="lang-ar">لا توجد إيداعات بعد.</span><span class="lang-en">No deposits yet.</span>
+      <div class="funding-card-title lang-ar">سجل العمليات</div>
+      <div class="funding-card-title lang-en">Transaction History</div>
+      <div id="txn-history-page1" style="margin-top:12px;"></div>
+      <div id="txn-history-more-pages"></div>
+      <p class="funding-note" id="txn-history-empty" style="display:none;">
+        <span class="lang-ar">لا توجد عمليات بعد.</span><span class="lang-en">No transactions yet.</span>
       </p>
-      <button class="btn-outline" id="deposit-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory('deposit')">
-        <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
-      </button>
-    </div>
-
-    <!-- Withdrawal History -->
-    <div class="funding-card">
-      <div class="funding-card-title lang-ar">سجل السحوبات</div>
-      <div class="funding-card-title lang-en">Withdrawal History</div>
-      <div id="withdraw-history-page1" style="margin-top:12px;"></div>
-      <div id="withdraw-history-more-pages"></div>
-      <p class="funding-note" id="withdraw-history-empty" style="display:none;">
-        <span class="lang-ar">لا توجد سحوبات بعد.</span><span class="lang-en">No withdrawals yet.</span>
-      </p>
-      <button class="btn-outline" id="withdraw-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory('withdraw')">
+      <button class="btn-outline" id="txn-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory()">
         <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
       </button>
     </div>
@@ -820,8 +806,9 @@
     // a let/const is inaccessible until its own declaration actually runs,
     // even though the function referencing it is hoisted.
     const HISTORY_PAGE_SIZE = 10;
-    let depositHistoryCursor = null, depositHistoryDone = false;
-    let withdrawHistoryCursor = null, withdrawHistoryDone = false;
+    let historyCursor = { deposit: null, withdraw: null };
+    let historyDone = { deposit: false, withdraw: false };
+    let historyBuffer = [];
     let depositPage1Unsub = null, withdrawPage1Unsub = null;
 
     // Set name and email in nav — the email matters for clients who have
@@ -922,8 +909,7 @@
       } else {
         fundingPicker.style.display = 'none';
       }
-      loadHistory('deposit', true);
-      loadHistory('withdraw', true);
+      loadHistory(true);
     }
 
     // Request MT5 function — also used from the active view to request a
@@ -1052,7 +1038,7 @@
         fileInput.value = '';
         document.getElementById('whish-deposit-form').style.display = 'none';
         alert(isAr ? 'تم إرسال طلب الإيداع! سنراجعه قريباً.' : 'Deposit request submitted! We will review it shortly.');
-        loadHistory('deposit', true);
+        loadHistory(true);
       } catch (e) {
         console.error(e);
         errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
@@ -1139,7 +1125,7 @@
         document.getElementById('withdraw-phone').value = '';
         document.getElementById('withdraw-wallet').value = '';
         alert(isAr ? 'تم إرسال طلب السحب! سنعالجه قريباً.' : 'Withdrawal request submitted! We will process it shortly.');
-        loadHistory('withdraw', true);
+        loadHistory(true);
       } catch (e) {
         console.error(e);
         errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
@@ -1150,8 +1136,30 @@
       }
     };
 
-    // ── TRANSACTION HISTORY (paginated, receipts shown as a link rather
-    // than loaded inline, so a client with a long history stays fast) ──
+    // ── TRANSACTION HISTORY -- deposits and withdrawals merged into one
+    // time-sorted list (whichever happened most recently shows first,
+    // regardless of type). Page 1 for each collection is its own live
+    // listener; since the true merged top-10 is always contained within
+    // the top-10 of each individual collection, fetching 10 from each and
+    // merging client-side is sufficient -- no separate "top 10 overall"
+    // query is possible across two collections anyway. Receipts are shown
+    // as a link rather than loaded inline, so a long history stays fast.
+    let historyLiveDocs = { deposit: [], withdraw: [] };
+
+    function playNotifySound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [880, 1046].forEach((freq, i) => {
+          setTimeout(() => {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(0.2, ctx.currentTime);
+            o.start(); o.stop(ctx.currentTime + 0.15);
+          }, i * 180);
+        });
+      } catch (e) { /* audio not available -- the banner still shows */ }
+    }
 
     // ── DISMISSIBLE NOTIFICATION BANNERS ──
     // Dismiss state lives in localStorage (per browser, not per account) --
@@ -1175,29 +1183,36 @@
       if (el) el.remove();
     };
 
+    // Both language variants are always emitted together (lang-ar/lang-en
+    // spans, same convention as the rest of this page) instead of picking
+    // one at render time -- so toggling EN/AR updates every banner and
+    // status label already on screen instantly via CSS, with no re-render.
     function bannerMessageFor(type, r) {
-      const isAr = !document.getElementById('body').classList.contains('en');
       if (type === 'deposit') {
         if (r.status === 'deposited') {
           const amt = r.approved_amount != null ? r.approved_amount : r.claimed_amount;
-          return { kind: 'success', text: isAr ? `تم تأكيد إيداعك بمبلغ $${amt}.` : `Your deposit of $${amt} has been confirmed.` };
+          return { kind: 'success', html: `<span class="lang-ar">تم تأكيد إيداعك بمبلغ $${amt}.</span><span class="lang-en">Your deposit of $${amt} has been confirmed.</span>` };
         }
         if (r.status === 'rejected') {
-          return { kind: 'error', text: isAr ? `تم رفض طلب الإيداع الخاص بك. السبب: ${r.rejection_reason || ''}` : `Your deposit request was rejected. Reason: ${r.rejection_reason || ''}` };
+          const reason = escapeHtml(r.rejection_reason || '');
+          return { kind: 'error', html: `<span class="lang-ar">تم رفض طلب الإيداع الخاص بك. السبب: ${reason}</span><span class="lang-en">Your deposit request was rejected. Reason: ${reason}</span>` };
         }
       } else {
         if (r.status === 'completed') {
-          return { kind: 'success', text: isAr ? `تم إتمام عملية سحبك بمبلغ $${r.amount}.` : `Your withdrawal of $${r.amount} has been completed.` };
+          return { kind: 'success', html: `<span class="lang-ar">تم إتمام عملية سحبك بمبلغ $${r.amount}.</span><span class="lang-en">Your withdrawal of $${r.amount} has been completed.</span>` };
         }
         if (r.status === 'rejected') {
-          return { kind: 'error', text: isAr ? `تم رفض طلب السحب الخاص بك. السبب: ${r.rejection_reason || ''}` : `Your withdrawal request was rejected. Reason: ${r.rejection_reason || ''}` };
+          const reason = escapeHtml(r.rejection_reason || '');
+          return { kind: 'error', html: `<span class="lang-ar">تم رفض طلب السحب الخاص بك. السبب: ${reason}</span><span class="lang-en">Your withdrawal request was rejected. Reason: ${reason}</span>` };
         }
       }
       return null;
     }
 
+    let hasReceivedFirstBannerSnapshot = { deposit: false, withdraw: false };
     function updateTxnBanners(type, docs) {
       const dismissed = getDismissedBannerIds();
+      let playedSound = false;
       docs.forEach(d => {
         const r = d.data();
         const id = `${type}-${d.id}`;
@@ -1207,11 +1222,16 @@
         if (document.getElementById(`txn-banner-${id}`)) return;
         document.getElementById('txn-banners').insertAdjacentHTML('beforeend', `
           <div class="txn-banner ${msg.kind}" id="txn-banner-${id}">
-            <span>${msg.text}</span>
+            <span>${msg.html}</span>
             <button class="txn-banner-close" onclick="dismissTxnBanner('${id}')">×</button>
           </div>
         `);
+        // Only play a sound for something that resolved while the client is
+        // actually here -- not for old undismissed banners reappearing on
+        // the very first load of this listener.
+        if (hasReceivedFirstBannerSnapshot[type] && !playedSound) { playNotifySound(); playedSound = true; }
       });
+      hasReceivedFirstBannerSnapshot[type] = true;
     }
 
     function formatHistoryDate(ts) {
@@ -1220,7 +1240,6 @@
     }
 
     function historyStatusBadge(kind, status) {
-      const isAr = !document.getElementById('body').classList.contains('en');
       const maps = {
         deposit: {
           pending: { cls: 'pending', ar: 'قيد المراجعة', en: 'Pending Review' },
@@ -1230,18 +1249,19 @@
         },
         withdraw: {
           pending: { cls: 'pending', ar: 'قيد المراجعة', en: 'Pending Review' },
-          balance_deducted: { cls: 'processing', ar: 'قيد المعالجة', en: 'Processing' },
+          balance_deducted: { cls: 'processing', ar: 'تم خصم المبلغ من الحساب — قيد المعالجة', en: 'Withdrawn from account — processing' },
           sent_to_googlecell: { cls: 'processing', ar: 'قيد التحويل', en: 'Transferring' },
           completed: { cls: 'done', ar: 'مكتمل', en: 'Completed' },
           rejected: { cls: 'rejected', ar: 'مرفوض', en: 'Rejected' },
         },
       };
       const s = maps[kind][status] || maps[kind].pending;
-      return `<span class="history-status ${s.cls}">${isAr ? s.ar : s.en}</span>`;
+      return `<span class="history-status ${s.cls}"><span class="lang-ar">${s.ar}</span><span class="lang-en">${s.en}</span></span>`;
     }
 
-    function renderHistoryRow(type, r) {
-      const isAr = !document.getElementById('body').classList.contains('en');
+    function renderHistoryRow(r) {
+      const type = r._type;
+      const dateStr = formatHistoryDate(r.resolved_at || r.created_at);
       if (type === 'deposit') {
         const amountLine = (r.approved_amount != null && r.approved_amount !== r.claimed_amount)
           ? `$${r.claimed_amount} → $${r.approved_amount}`
@@ -1249,101 +1269,114 @@
         return `
           <div class="history-row">
             <div>
-              <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')}</div>
-              <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+              <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')} <span class="lang-ar">(إيداع)</span><span class="lang-en">(Deposit)</span></div>
+              <div class="history-sub">${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               ${historyStatusBadge('deposit', r.status)}
-              ${r.receipt_url ? `<a class="history-link" href="${escapeHtml(r.receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+              ${r.receipt_url ? `<a class="history-link" href="${escapeHtml(r.receipt_url)}" target="_blank" rel="noopener"><span class="lang-ar">عرض الإيصال</span><span class="lang-en">View Receipt</span></a>` : ''}
             </div>
           </div>`;
       }
       return `
         <div class="history-row">
           <div>
-            <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')}</div>
-            <div class="history-sub">${formatHistoryDate(r.created_at)}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+            <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')} <span class="lang-ar">(سحب)</span><span class="lang-en">(Withdrawal)</span></div>
+            <div class="history-sub">${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             ${historyStatusBadge('withdraw', r.status)}
-            ${r.completion_receipt_url ? `<a class="history-link" href="${escapeHtml(r.completion_receipt_url)}" target="_blank" rel="noopener">${isAr ? 'عرض الإيصال' : 'View Receipt'}</a>` : ''}
+            ${r.completion_receipt_url ? `<a class="history-link" href="${escapeHtml(r.completion_receipt_url)}" target="_blank" rel="noopener"><span class="lang-ar">عرض الإيصال</span><span class="lang-en">View Receipt</span></a>` : ''}
           </div>
         </div>`;
     }
 
-    // Only the first page is ever (re)initialized here, as a live listener --
-    // it doubles as the notification source (see updateTxnBanners). Older
-    // pages are one-time fetches via loadMoreHistory, since resolved history
-    // from further back isn't going to change again.
-    function loadHistory(type, reset) {
-      if (!reset) return;
-      const isDeposit = type === 'deposit';
-      const collectionName = isDeposit ? 'funding_requests' : 'withdrawal_requests';
-      const page1El = document.getElementById(isDeposit ? 'deposit-history-page1' : 'withdraw-history-page1');
-      const morePagesEl = document.getElementById(isDeposit ? 'deposit-history-more-pages' : 'withdraw-history-more-pages');
-      const moreBtn = document.getElementById(isDeposit ? 'deposit-history-more' : 'withdraw-history-more');
-      const emptyEl = document.getElementById(isDeposit ? 'deposit-history-empty' : 'withdraw-history-empty');
+    function renderMergedPage1() {
+      const merged = [
+        ...historyLiveDocs.deposit.map(r => ({ ...r, _type: 'deposit' })),
+        ...historyLiveDocs.withdraw.map(r => ({ ...r, _type: 'withdraw' })),
+      ]
+        .sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0))
+        .slice(0, HISTORY_PAGE_SIZE);
 
-      morePagesEl.innerHTML = '';
-      if (isDeposit) {
-        depositHistoryCursor = null; depositHistoryDone = false;
-        if (depositPage1Unsub) depositPage1Unsub();
-      } else {
-        withdrawHistoryCursor = null; withdrawHistoryDone = false;
-        if (withdrawPage1Unsub) withdrawPage1Unsub();
-      }
-
-      const q = query(collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc'), limit(HISTORY_PAGE_SIZE));
-      const unsub = onSnapshot(q, (snap) => {
-        emptyEl.style.display = (snap.empty && !morePagesEl.innerHTML) ? 'block' : 'none';
-        page1El.innerHTML = snap.docs.map(d => renderHistoryRow(type, d.data())).join('');
-        updateTxnBanners(type, snap.docs);
-
-        const lastDoc = snap.docs[snap.docs.length - 1];
-        if (isDeposit) {
-          if (lastDoc) depositHistoryCursor = lastDoc;
-          depositHistoryDone = snap.size < HISTORY_PAGE_SIZE;
-        } else {
-          if (lastDoc) withdrawHistoryCursor = lastDoc;
-          withdrawHistoryDone = snap.size < HISTORY_PAGE_SIZE;
-        }
-        moreBtn.style.display = (isDeposit ? depositHistoryDone : withdrawHistoryDone) ? 'none' : 'block';
-      }, (err) => {
-        console.error(`Failed to load ${type} history:`, err);
-      });
-
-      if (isDeposit) depositPage1Unsub = unsub;
-      else withdrawPage1Unsub = unsub;
+      document.getElementById('txn-history-page1').innerHTML = merged.map(renderHistoryRow).join('');
+      const hasAnyMore = document.getElementById('txn-history-more-pages').innerHTML;
+      document.getElementById('txn-history-empty').style.display = (merged.length === 0 && !hasAnyMore) ? 'block' : 'none';
     }
 
-    window.loadMoreHistory = async function(type) {
-      const isDeposit = type === 'deposit';
-      const collectionName = isDeposit ? 'funding_requests' : 'withdrawal_requests';
-      const morePagesEl = document.getElementById(isDeposit ? 'deposit-history-more-pages' : 'withdraw-history-more-pages');
-      const moreBtn = document.getElementById(isDeposit ? 'deposit-history-more' : 'withdraw-history-more');
-      const cursor = isDeposit ? depositHistoryCursor : withdrawHistoryCursor;
-      if (!cursor) return;
+    // Only page 1 is ever a live listener (one per collection, merged) --
+    // it doubles as the notification source. Older pages are one-time
+    // fetches via loadMoreHistory, since resolved history from further
+    // back isn't going to change again.
+    function loadHistory(reset) {
+      if (!reset) return;
+      document.getElementById('txn-history-more-pages').innerHTML = '';
+      historyCursor = { deposit: null, withdraw: null };
+      historyDone = { deposit: false, withdraw: false };
+      historyBuffer = [];
+      if (depositPage1Unsub) depositPage1Unsub();
+      if (withdrawPage1Unsub) withdrawPage1Unsub();
 
-      const q = query(collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc'), startAfter(cursor), limit(HISTORY_PAGE_SIZE));
+      const dq = query(collection(db, 'funding_requests'), where('uid', '==', user.uid), orderBy('created_at', 'desc'), limit(HISTORY_PAGE_SIZE));
+      depositPage1Unsub = onSnapshot(dq, (snap) => {
+        historyLiveDocs.deposit = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        if (lastDoc) historyCursor.deposit = lastDoc;
+        historyDone.deposit = snap.size < HISTORY_PAGE_SIZE;
+        renderMergedPage1();
+        updateTxnBanners('deposit', snap.docs);
+        updateLoadMoreVisibility();
+      }, (err) => console.error('Failed to load deposit history:', err));
+
+      const wq = query(collection(db, 'withdrawal_requests'), where('uid', '==', user.uid), orderBy('created_at', 'desc'), limit(HISTORY_PAGE_SIZE));
+      withdrawPage1Unsub = onSnapshot(wq, (snap) => {
+        historyLiveDocs.withdraw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const lastDoc = snap.docs[snap.docs.length - 1];
+        if (lastDoc) historyCursor.withdraw = lastDoc;
+        historyDone.withdraw = snap.size < HISTORY_PAGE_SIZE;
+        renderMergedPage1();
+        updateTxnBanners('withdraw', snap.docs);
+        updateLoadMoreVisibility();
+      }, (err) => console.error('Failed to load withdrawal history:', err));
+    }
+
+    function updateLoadMoreVisibility() {
+      const stillMore = historyBuffer.length > 0 || !historyDone.deposit || !historyDone.withdraw;
+      document.getElementById('txn-history-more').style.display = stillMore ? 'block' : 'none';
+    }
+
+    async function fetchHistoryPageForType(type) {
+      if (historyDone[type]) return [];
+      const collectionName = type === 'deposit' ? 'funding_requests' : 'withdrawal_requests';
+      const cursor = historyCursor[type];
+      const base = [collection(db, collectionName), where('uid', '==', user.uid), orderBy('created_at', 'desc')];
+      const q = cursor ? query(...base, startAfter(cursor), limit(HISTORY_PAGE_SIZE)) : query(...base, limit(HISTORY_PAGE_SIZE));
       let snap;
       try {
         snap = await getDocs(q);
       } catch (e) {
         console.error(`Failed to load more ${type} history:`, e);
-        return;
+        historyDone[type] = true;
+        return [];
       }
-
-      morePagesEl.insertAdjacentHTML('beforeend', snap.docs.map(d => renderHistoryRow(type, d.data())).join(''));
-
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data(), _type: type }));
       const lastDoc = snap.docs[snap.docs.length - 1];
-      if (isDeposit) {
-        if (lastDoc) depositHistoryCursor = lastDoc;
-        depositHistoryDone = snap.size < HISTORY_PAGE_SIZE;
-      } else {
-        if (lastDoc) withdrawHistoryCursor = lastDoc;
-        withdrawHistoryDone = snap.size < HISTORY_PAGE_SIZE;
+      if (lastDoc) historyCursor[type] = lastDoc;
+      if (snap.size < HISTORY_PAGE_SIZE) historyDone[type] = true;
+      return docs;
+    }
+
+    window.loadMoreHistory = async function() {
+      if (historyBuffer.length < HISTORY_PAGE_SIZE) {
+        const types = ['deposit', 'withdraw'].filter(t => !historyDone[t]);
+        const fetches = await Promise.all(types.map(fetchHistoryPageForType));
+        fetches.forEach(docs => historyBuffer.push(...docs));
+        historyBuffer.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
       }
-      moreBtn.style.display = (isDeposit ? depositHistoryDone : withdrawHistoryDone) ? 'none' : 'block';
+
+      const pageItems = historyBuffer.splice(0, HISTORY_PAGE_SIZE);
+      document.getElementById('txn-history-more-pages').insertAdjacentHTML('beforeend', pageItems.map(renderHistoryRow).join(''));
+      updateLoadMoreVisibility();
     };
 
     // Logout
