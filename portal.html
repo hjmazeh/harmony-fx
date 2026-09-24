@@ -542,6 +542,14 @@
         </p>
       </div>
 
+      <div id="mt5-pending-inline-notice" class="mt5-card" style="display:none;text-align:center;">
+        <div class="status-badge pending" style="margin:0 auto 10px;"><div class="status-dot"></div><span class="lang-ar">جارٍ الإنشاء</span><span class="lang-en">Being Created</span></div>
+        <p style="margin:0;color:var(--steel);font-size:14px;">
+          <span class="lang-ar">طلب حساب MT5 إضافي قيد المعالجة — سنقوم بإشعارك فور جهوزيته.</span>
+          <span class="lang-en">Your additional MT5 account request is being processed — we'll notify you once it's ready.</span>
+        </p>
+      </div>
+
       <div id="request-another-box" class="mt5-card" style="display:none;text-align:center;">
         <button class="btn-primary" onclick="requestMT5()">
           <span class="lang-ar">طلب حساب MT5 إضافي</span><span class="lang-en">Request Another MT5 Account</span>
@@ -677,18 +685,25 @@
       </div>
     </div>
 
-    <!-- Transaction History (deposits + withdrawals merged, newest first) -->
+    <!-- Transaction History (deposits + withdrawals merged, newest first) --
+         collapsed by default; only revealed by an explicit click, and never
+         auto-reopens itself (not on refresh, not after a new submission). -->
     <div class="funding-card">
       <div class="funding-card-title lang-ar">سجل العمليات</div>
       <div class="funding-card-title lang-en">Transaction History</div>
-      <div id="txn-history-page1" style="margin-top:12px;"></div>
-      <div id="txn-history-more-pages"></div>
-      <p class="funding-note" id="txn-history-empty" style="display:none;">
-        <span class="lang-ar">لا توجد عمليات بعد.</span><span class="lang-en">No transactions yet.</span>
-      </p>
-      <button class="btn-outline" id="txn-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory()">
-        <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
+      <button class="btn-outline" id="txn-history-reveal-btn" style="margin-top:12px;width:100%;" onclick="revealTxnHistory()">
+        <span class="lang-ar">عرض سجل العمليات</span><span class="lang-en">Show Transaction History</span>
       </button>
+      <div id="txn-history-content" style="display:none;">
+        <div id="txn-history-page1" style="margin-top:12px;"></div>
+        <div id="txn-history-more-pages"></div>
+        <p class="funding-note" id="txn-history-empty" style="display:none;">
+          <span class="lang-ar">لا توجد عمليات بعد.</span><span class="lang-en">No transactions yet.</span>
+        </p>
+        <button class="btn-outline" id="txn-history-more" style="display:none;margin-top:12px;width:100%;" onclick="loadMoreHistory()">
+          <span class="lang-ar">تحميل المزيد</span><span class="lang-en">Load More</span>
+        </button>
+      </div>
     </div>
 
   </div> <!-- /card-active -->
@@ -716,7 +731,15 @@
       btnEn.classList.remove('active');
 
     }
+    try { localStorage.setItem('preferred_lang', lang); } catch (e) { /* localStorage unavailable -- just won't persist */ }
   }
+
+  // Restore the last-chosen language on load instead of always defaulting
+  // back to Arabic.
+  try {
+    const savedLang = localStorage.getItem('preferred_lang');
+    if (savedLang === 'en') setLang('en');
+  } catch (e) { /* localStorage unavailable -- stays on the default */ }
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -798,18 +821,22 @@
       return;
     }
 
-    const data = userDoc.data();
+    let data = userDoc.data();
 
     // Declared here (not lower down where they're conceptually grouped)
     // because loadHistory() can be called from the active-status branch
     // below before the script reaches their original declaration line --
     // a let/const is inaccessible until its own declaration actually runs,
     // even though the function referencing it is hoisted.
-    const HISTORY_PAGE_SIZE = 10;
+    const HISTORY_PAGE_SIZE = 5;
     let historyCursor = { deposit: null, withdraw: null };
     let historyDone = { deposit: false, withdraw: false };
     let historyBuffer = [];
     let depositPage1Unsub = null, withdrawPage1Unsub = null;
+    // The live listeners always run (they're the notification source), but
+    // the visible list only ever renders once the client explicitly asks
+    // for it -- not on page load, not after submitting a new transaction.
+    let historyRevealed = false;
 
     // Set name and email in nav — the email matters for clients who have
     // more than one portal account, so they know which one they're in.
@@ -831,8 +858,13 @@
       return;
     }
 
-    // Show correct status card
+    // Show correct status card. Wrapped in a function (rather than run
+    // inline once) so the live listener further down can re-run it whenever
+    // the doc changes -- e.g. KYC gets approved or an MT5 account becomes
+    // ready -- without a manual page refresh.
+    function renderStatusCard() {
     const status = data.status || 'pending_kyc';
+    const hasExistingAccounts = !!((data.mt5_accounts && data.mt5_accounts.length) || data.mt5_login);
     const cards = ['pending-kyc','kyc-submitted','kyc-rejected','kyc-approved','mt5-requested','active'];
     cards.forEach(c => {
       const el = document.getElementById('card-' + c);
@@ -848,10 +880,17 @@
       document.getElementById('rejection-reason-text').textContent = data.rejection_reason || '';
     } else if (status === 'kyc_approved') {
       document.getElementById('card-kyc-approved').style.display = 'block';
-    } else if (status === 'mt5_requested') {
+    } else if (status === 'mt5_requested' && !hasExistingAccounts) {
+      // First-ever request -- nothing else to show yet, so the full-page
+      // takeover is still the right call here.
       document.getElementById('card-mt5-requested').style.display = 'block';
-    } else if (status === 'active') {
+    } else if (status === 'active' || status === 'mt5_requested') {
+      // Either genuinely active, or requesting an ADDITIONAL account while
+      // already active -- either way there are existing accounts worth
+      // keeping on screen, so this stays the active view with just a small
+      // inline notice instead of a full-page takeover.
       document.getElementById('card-active').style.display = 'block';
+      document.getElementById('mt5-pending-inline-notice').style.display = status === 'mt5_requested' ? 'block' : 'none';
       const mt5Accounts = (data.mt5_accounts && data.mt5_accounts.length)
         ? data.mt5_accounts
         : (data.mt5_login ? [{ login: data.mt5_login, server: data.mt5_server || 'Harmonic' }] : []);
@@ -897,8 +936,10 @@
       const refCode = data.referral_code || '';
       document.getElementById('referral-link-text').textContent = 'https://harmonyfx.me/signup.html?ref=' + refCode;
       document.getElementById('referral-count').textContent = data.referral_count || 0;
-      // Up to 3 accounts total — hide the request button once at the cap
-      document.getElementById('request-another-box').style.display = mt5Accounts.length < 3 ? 'block' : 'none';
+      // Up to 3 accounts total — hide the request button once at the cap,
+      // and also while a request is already pending (inline notice above
+      // covers that state instead).
+      document.getElementById('request-another-box').style.display = (status !== 'mt5_requested' && mt5Accounts.length < 3) ? 'block' : 'none';
       // With more than one account, let them pick which one to fund instead
       // of guessing — with only one, there's nothing to choose.
       const fundingPicker = document.getElementById('funding-account-picker');
@@ -911,14 +952,20 @@
       }
       loadHistory(true);
     }
+    }
+    renderStatusCard();
 
     // Request MT5 function — also used from the active view to request a
     // 2nd/3rd account, not just the first one from kyc_approved.
     window.requestMT5 = async function() {
+      const wasActive = data.status === 'active';
+      // Optimistic UI: re-render immediately with the new status instead of
+      // waiting for the round trip -- the live listener below reconciles
+      // once the write actually lands (harmless no-op re-render at that point).
+      data = { ...data, status: 'mt5_requested', mt5_requested_at: new Date() };
+      renderStatusCard();
+
       await updateDoc(doc(db, 'users', user.uid), { status: 'mt5_requested', mt5_requested_at: serverTimestamp() });
-      document.getElementById('card-kyc-approved').style.display = 'none';
-      document.getElementById('card-active').style.display = 'none';
-      document.getElementById('card-mt5-requested').style.display = 'block';
 
       // Notify the team, same as the KYC-submission notification. Sent
       // through Valmuntra's existing EmailJS account/template on purpose --
@@ -931,12 +978,45 @@
           to_email: 'support@harmonyfx.me',
           reply_to: user.email,
           subject: 'MT5 Account Requested — ' + (data.fullname || ''),
-          message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nPhone: ${data.phone || ''}\nSubmitted: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Beirut' })}\n\n${status === 'active' ? 'Client is already active and has requested an additional MT5 account.' : 'Client is KYC-approved and has requested an MT5 account.'} Login to review: https://staff.tratech.me/`
+          message: `Client: ${data.fullname || ''}\nEmail: ${user.email}\nPhone: ${data.phone || ''}\nSubmitted: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Beirut' })}\n\n${wasActive ? 'Client is already active and has requested an additional MT5 account.' : 'Client is KYC-approved and has requested an MT5 account.'} Login to review: https://staff.tratech.me/`
         });
       } catch (emailErr) {
         console.log('MT5 request notification failed:', emailErr);
       }
     };
+
+    // ── LIVE STATUS UPDATES ──
+    // A separate live listener on the client's own doc (independent of the
+    // one-time renderStatusCard() call above) so KYC approval / an MT5
+    // account becoming ready reaches the portal without a manual refresh --
+    // same idea as the deposit/withdrawal banners below, applied to the
+    // account status itself.
+    let lastKnownStatus = data.status || 'pending_kyc';
+    let lastKnownAccountCount = (data.mt5_accounts && data.mt5_accounts.length) ? data.mt5_accounts.length : (data.mt5_login ? 1 : 0);
+    onSnapshot(doc(db, 'users', user.uid), (snap) => {
+      if (!snap.exists()) return;
+      const newData = snap.data();
+      const newStatus = newData.status || 'pending_kyc';
+      const newAccountCount = (newData.mt5_accounts && newData.mt5_accounts.length) ? newData.mt5_accounts.length : (newData.mt5_login ? 1 : 0);
+
+      const becameActive = newStatus === 'active' && (lastKnownStatus !== 'active' || newAccountCount > lastKnownAccountCount);
+      const kycJustApproved = newStatus === 'kyc_approved' && lastKnownStatus === 'kyc_submitted';
+      const kycJustRejected = newStatus === 'kyc_rejected' && lastKnownStatus === 'kyc_submitted';
+
+      data = newData;
+      lastKnownStatus = newStatus;
+      lastKnownAccountCount = newAccountCount;
+      renderStatusCard();
+
+      if (becameActive) {
+        const latestLogin = escapeHtml(String((newData.mt5_accounts && newData.mt5_accounts.length ? newData.mt5_accounts[newData.mt5_accounts.length - 1].login : newData.mt5_login) || ''));
+        showStatusBanner('mt5ready-' + newAccountCount, 'success', `<span class="lang-ar">حسابك على MT5 رقم ${latestLogin} جاهز الآن!</span><span class="lang-en">Your MT5 account ${latestLogin} is ready!</span>`);
+      } else if (kycJustApproved) {
+        showStatusBanner('kycapproved', 'success', `<span class="lang-ar">تم التحقق من هويتك بنجاح!</span><span class="lang-en">Your identity has been verified!</span>`);
+      } else if (kycJustRejected) {
+        showStatusBanner('kycrejected', 'error', `<span class="lang-ar">تم رفض التحقق من الهوية. يرجى مراجعة السبب أدناه.</span><span class="lang-en">Your identity verification was rejected — please check the reason below.</span>`);
+      }
+    });
 
     // ── FUND & WITHDRAW ──
     function getSelectedFundingAccount() {
@@ -1037,8 +1117,7 @@
         document.getElementById('deposit-amount').value = '';
         fileInput.value = '';
         document.getElementById('whish-deposit-form').style.display = 'none';
-        alert(isAr ? 'تم إرسال طلب الإيداع! سنراجعه قريباً.' : 'Deposit request submitted! We will review it shortly.');
-        loadHistory(true);
+        showQuickBanner('<span class="lang-ar">تم إرسال طلب الإيداع! سنراجعه قريباً.</span><span class="lang-en">Deposit request submitted! We will review it shortly.</span>', 'success');
       } catch (e) {
         console.error(e);
         errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
@@ -1124,8 +1203,7 @@
         document.getElementById('withdraw-amount').value = '';
         document.getElementById('withdraw-phone').value = '';
         document.getElementById('withdraw-wallet').value = '';
-        alert(isAr ? 'تم إرسال طلب السحب! سنعالجه قريباً.' : 'Withdrawal request submitted! We will process it shortly.');
-        loadHistory(true);
+        showQuickBanner('<span class="lang-ar">تم إرسال طلب السحب! سنعالجه قريباً.</span><span class="lang-en">Withdrawal request submitted! We will process it shortly.</span>', 'success');
       } catch (e) {
         console.error(e);
         errEl.textContent = isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.';
@@ -1146,17 +1224,25 @@
     // as a link rather than loaded inline, so a long history stays fast.
     let historyLiveDocs = { deposit: [], withdraw: [] };
 
+    // A soft ascending major-third chime (C6, E6, G6) with a gentle
+    // attack/release envelope -- a pleasant "good news" tone rather than
+    // the staff panel's urgent double-beep, which is meant to grab
+    // attention for an action-needed alert, not fit a client-facing update.
     function playNotifySound() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        [880, 1046].forEach((freq, i) => {
+        [1046.5, 1318.5, 1568].forEach((freq, i) => {
           setTimeout(() => {
             const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine';
             o.connect(g); g.connect(ctx.destination);
             o.frequency.value = freq;
-            g.gain.setValueAtTime(0.2, ctx.currentTime);
-            o.start(); o.stop(ctx.currentTime + 0.15);
-          }, i * 180);
+            const t = ctx.currentTime;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.1, t + 0.03);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+            o.start(t); o.stop(t + 0.35);
+          }, i * 90);
         });
       } catch (e) { /* audio not available -- the banner still shows */ }
     }
@@ -1182,6 +1268,38 @@
       const el = document.getElementById(`txn-banner-${id}`);
       if (el) el.remove();
     };
+
+    // A one-off, non-blocking confirmation (e.g. "request submitted") --
+    // unlike alert(), it never sits there demanding a click before the
+    // client can do anything else.
+    let quickBannerCounter = 0;
+    function showQuickBanner(html, kind) {
+      const id = `quick-${Date.now()}-${quickBannerCounter++}`;
+      document.getElementById('txn-banners').insertAdjacentHTML('beforeend', `
+        <div class="txn-banner ${kind}" id="txn-banner-${id}">
+          <span>${html}</span>
+          <button class="txn-banner-close" onclick="dismissTxnBanner('${id}')">×</button>
+        </div>
+      `);
+      setTimeout(() => window.dismissTxnBanner(id), 8000);
+    }
+
+    // Account-status banners (KYC approved/rejected, MT5 account ready) --
+    // same dismiss-tracking and styling as the transaction banners above,
+    // just keyed by a synthetic id (a status/account-count milestone)
+    // instead of a Firestore doc id.
+    function showStatusBanner(id, kind, html) {
+      if (getDismissedBannerIds().includes(id)) return;
+      if (document.getElementById(`txn-banner-${id}`)) return;
+      document.getElementById('txn-banners').insertAdjacentHTML('beforeend', `
+        <div class="txn-banner ${kind}" id="txn-banner-${id}">
+          <span>${html}</span>
+          <button class="txn-banner-close" onclick="dismissTxnBanner('${id}')">×</button>
+        </div>
+      `);
+      setTimeout(() => window.dismissTxnBanner(id), 30000);
+      playNotifySound();
+    }
 
     // Both language variants are always emitted together (lang-ar/lang-en
     // spans, same convention as the rest of this page) instead of picking
@@ -1226,6 +1344,10 @@
             <button class="txn-banner-close" onclick="dismissTxnBanner('${id}')">×</button>
           </div>
         `);
+        // Auto-dismiss after 30s -- otherwise a banner from days ago (e.g.
+        // opening the portal on a new device, which has no record of what
+        // was already dismissed) sits there indefinitely.
+        setTimeout(() => window.dismissTxnBanner(id), 30000);
         // Only play a sound for something that resolved while the client is
         // actually here -- not for old undismissed banners reappearing on
         // the very first load of this listener.
@@ -1270,7 +1392,7 @@
           <div class="history-row">
             <div>
               <div class="history-meta">${amountLine} — ${escapeHtml(r.method || 'Whish Money')} <span class="lang-ar">(إيداع)</span><span class="lang-en">(Deposit)</span></div>
-              <div class="history-sub">${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+              <div class="history-sub">MT5 ${escapeHtml(r.mt5_login || '—')} · ${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               ${historyStatusBadge('deposit', r.status)}
@@ -1282,7 +1404,7 @@
         <div class="history-row">
           <div>
             <div class="history-meta">$${r.amount} — ${escapeHtml(r.method || '')} <span class="lang-ar">(سحب)</span><span class="lang-en">(Withdrawal)</span></div>
-            <div class="history-sub">${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
+            <div class="history-sub">MT5 ${escapeHtml(r.mt5_login || '—')} · ${dateStr}${r.rejection_reason ? ' — ' + escapeHtml(r.rejection_reason) : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             ${historyStatusBadge('withdraw', r.status)}
@@ -1292,6 +1414,7 @@
     }
 
     function renderMergedPage1() {
+      if (!historyRevealed) return;
       const merged = [
         ...historyLiveDocs.deposit.map(r => ({ ...r, _type: 'deposit' })),
         ...historyLiveDocs.withdraw.map(r => ({ ...r, _type: 'withdraw' })),
@@ -1303,6 +1426,13 @@
       const hasAnyMore = document.getElementById('txn-history-more-pages').innerHTML;
       document.getElementById('txn-history-empty').style.display = (merged.length === 0 && !hasAnyMore) ? 'block' : 'none';
     }
+
+    window.revealTxnHistory = function() {
+      historyRevealed = true;
+      document.getElementById('txn-history-reveal-btn').style.display = 'none';
+      document.getElementById('txn-history-content').style.display = 'block';
+      renderMergedPage1();
+    };
 
     // Only page 1 is ever a live listener (one per collection, merged) --
     // it doubles as the notification source. Older pages are one-time
