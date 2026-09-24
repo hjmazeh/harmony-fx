@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -371,7 +371,7 @@
   }
 </style>
 </head>
-<body id="body">
+<body id="body" class="en">
 
 <nav>
   <a href="index.html" class="nav-logo">
@@ -379,8 +379,8 @@
   </a>
   <div class="nav-right">
     <div class="lang-toggle">
-      <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
-      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-ar" onclick="setLang('ar')">ع</button>
+      <button class="lang-btn active" id="btn-en" onclick="setLang('en')">EN</button>
     </div>
     <a href="index.html" class="nav-back">
       <span class="lang-ar">→ العودة للرئيسية</span>
@@ -427,7 +427,7 @@
         <div class="form-group">
           <label class="form-label lang-ar">الاسم الكامل</label>
           <label class="form-label lang-en">Full Name</label>
-          <input type="text" class="form-input" id="fullname" placeholder="محمد أحمد" autocomplete="name">
+          <input type="text" class="form-input" id="fullname" placeholder="Melhem Barakat" autocomplete="name">
           <div class="form-error" id="fullname-error">
             <span class="lang-ar">الرجاء إدخال الاسم الكامل</span>
             <span class="lang-en">Please enter your full name</span>
@@ -791,7 +791,18 @@
       btnAr.classList.add('active');
       btnEn.classList.remove('active');
     }
+    const fullnameInput = document.getElementById('fullname');
+    if (fullnameInput) fullnameInput.placeholder = lang === 'en' ? 'Melhem Barakat' : 'ملحم بركات';
+    try { localStorage.setItem('preferred_lang', lang); } catch (e) { /* localStorage unavailable -- just won't persist */ }
   }
+
+  // English is the default for a first-time visitor -- only override to
+  // Arabic if that's what they explicitly chose on any other page (the
+  // portal, login, KYC), since they all share this same localStorage key.
+  try {
+    const savedLang = localStorage.getItem('preferred_lang');
+    if (savedLang === 'ar') setLang('ar');
+  } catch (e) { /* localStorage unavailable -- stays on the default */ }
 </script>
 </body>
 </html>
