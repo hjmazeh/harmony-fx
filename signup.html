@@ -636,12 +636,13 @@
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Save user data in Firestore -- tagged as a HarmonyFX client so the
-      // shared staff panel (staff.tratech.me) and any brand-aware logic
-      // never confuses this with a Valmuntra signup.
+      // Save user data in Firestore first -- tagged as a HarmonyFX client so
+      // the shared staff panel (staff.tratech.me) and any brand-aware logic
+      // never confuses this with a Valmuntra signup. This must happen before
+      // the verification email send: a failure there must never leave an
+      // Auth account with no Firestore doc (invisible everywhere, and
+      // unrecoverable by the user since re-signing up hits
+      // auth/email-already-in-use).
       const referredBy = new URLSearchParams(window.location.search).get('ref');
       await setDoc(doc(db, 'users', user.uid), {
         brand: 'harmonyfx',
@@ -657,6 +658,13 @@
         referred_by: referredBy ? referredBy.trim().toUpperCase() : null,
         created_at: serverTimestamp()
       });
+
+      // Send verification email -- best-effort, must not block account creation.
+      try {
+        await sendEmailVerification(user);
+      } catch (e) {
+        console.error('sendEmailVerification failed:', e);
+      }
 
       // Show success
       document.getElementById('form-wrap').style.display = 'none';
