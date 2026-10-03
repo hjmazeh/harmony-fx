@@ -817,6 +817,7 @@
         terms_accepted_at: serverTimestamp(),
         referral_code: user.uid.substring(0, 8).toUpperCase(),
         referred_by: null,
+        attribution: (window.getAttribution && window.getAttribution()) || null,
         created_at: serverTimestamp()
       });
       window.location.href = 'portal.html';
@@ -830,5 +831,6 @@
   };
 </script>
 
+<script src="attribution.js"></script>
 </body>
 </html>
