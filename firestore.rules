@@ -1,0 +1,175 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ── Staff permissions ──
+    // A staff member's own users/{uid} doc carries `perms` (copied from
+    // their role by the staff panel), or role 'super_admin' for everything.
+    // Staff from before roles existed (is_admin, no perms) can do
+    // everything except manage staff; the old Marketing role (role
+    // 'marketing', no perms) can only manage ads. Clients have none.
+    function hasMe() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isSuperOf(d) {
+      return d.get('role', null) == 'super_admin' || d.get('is_super_admin', false) == true;
+    }
+    function canAnyOf(d, list) {
+      return isSuperOf(d)
+        || (('perms' in d) && d.perms.hasAny(list))
+        || (!('perms' in d) && d.get('is_admin', false) == true && list.removeAll(['staff.manage']).size() > 0)
+        || (!('perms' in d) && d.get('role', null) == 'marketing' && list.hasAny(['ads.manage']));
+    }
+    function isStaffOf(d) {
+      return isSuperOf(d)
+        || (('perms' in d) && d.perms.size() > 0)
+        || (!('perms' in d) && (d.get('is_admin', false) == true || d.get('role', null) == 'marketing'));
+    }
+    function isSuper() { return hasMe() && isSuperOf(me()); }
+    function isStaff() { return hasMe() && isStaffOf(me()); }
+    function canAny(list) { return hasMe() && canAnyOf(me(), list); }
+    function can(p) { return canAny([p]); }
+
+    // Anything that needs the client list loaded.
+    function canReadUsers() {
+      return canAny(['clients.view', 'clients.create', 'kyc.review', 'kyc.view', 'mt5.manage',
+        'ibs.view', 'ibs.edit', 'ibs.change', 'ibs.make', 'ibs.import',
+        'accounts.view', 'referrals.view', 'sources.view', 'rebates.send', 'staff.manage']);
+    }
+
+    // Fields only staff management may set. A client's own doc, and any
+    // client doc staff create, must not carry them.
+    function noStaffFields(d) {
+      return !d.keys().hasAny(['role', 'role_name', 'perms', 'is_super_admin', 'role_updated_at', 'role_updated_by'])
+        && d.get('is_admin', false) == false;
+    }
+
+    // Operational settings, readable by any signed-in client so the portal
+    // can show them: the Whish number (Transfer Means), symbol classes and
+    // referral programs (Rates).
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuper()
+        || (settingId == 'whish_money' && can('transfer.edit'))
+        || (settingId in ['symbol_classes', 'referral_program'] && can('rates.edit'));
+    }
+
+    // Staff activity log -- any staff member records their own actions;
+    // reading it is "Activity log". Append-only.
+    match /admin_logs/{logId} {
+      allow read: if can('activity.view');
+      allow create: if isStaff();
+    }
+
+    // Deposit requests: the client submits a receipt + claimed amount;
+    // every status change after that is staff with "Process deposits".
+    match /funding_requests/{requestId} {
+      allow get, list: if (isSignedIn() && resource.data.uid == request.auth.uid)
+        || canAny(['deposits.process', 'transactions.history']);
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.approved_amount == null
+        && request.resource.data.resolved_by == null;
+
+      allow update: if can('deposits.process');
+      allow delete: if isSuper();
+    }
+
+    // Withdrawal requests: same, with "Process withdrawals".
+    match /withdrawal_requests/{requestId} {
+      allow get, list: if (isSignedIn() && resource.data.uid == request.auth.uid)
+        || canAny(['withdrawals.process', 'transactions.history']);
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.resolved_by == null;
+
+      allow update: if can('withdrawals.process');
+      allow delete: if isSuper();
+    }
+
+    match /users/{userId} {
+      function isOwner() {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      // What each staff permission may change on a client's doc (d = the
+      // staff member's own doc, keys = the fields being changed). Nobody but
+      // a super admin may touch a super admin's doc or make someone one.
+      function staffUpdateOf(d, keys) {
+        return isSuperOf(d) || (
+          isStaffOf(d) && !isSuperOf(resource.data) && !isSuperOf(request.resource.data) && (
+            // KYC review: approve / reject
+            (keys.hasOnly(['status', 'rejection_reason']) && canAnyOf(d, ['kyc.review'])
+              && request.resource.data.status in ['kyc_approved', 'kyc_rejected']) ||
+            // MT5 accounts (and crediting the referral once the first one exists)
+            (keys.hasOnly(['mt5_accounts', 'mt5_login', 'mt5_password', 'mt5_server', 'mt5_history',
+              'mt5_pending_renames', 'status', 'referral_credited', 'referral_count']) && canAnyOf(d, ['mt5.manage'])
+              && request.resource.data.get('status', null) in ['active', resource.data.get('status', null)]) ||
+            // Crediting a referrer after a client is created manually
+            (keys.hasOnly(['referral_count', 'referral_credited']) && canAnyOf(d, ['clients.create'])) ||
+            // IB tag: change IB, make IB (own account), IB edits that move clients
+            (keys.hasOnly(['ib_link_code', 'ib_id', 'ib_name', 'ib_code', 'main_ib_id', 'main_ib_name', 'main_ib_code',
+              'product_id', 'product_name', 'mt5_group', 'ib_assigned_at', 'mt5_pending_renames'])
+              && canAnyOf(d, ['ibs.change', 'ibs.edit', 'ibs.make'])) ||
+            // Rebate notifications
+            (keys.hasOnly(['last_rebate_amount', 'last_rebate_paid_at', 'rebate_history']) && canAnyOf(d, ['rebates.send'])) ||
+            // Staff roles
+            (keys.hasOnly(['role', 'role_name', 'perms', 'is_admin', 'role_updated_at', 'role_updated_by']) && canAnyOf(d, ['staff.manage']))
+          )
+        );
+      }
+
+      // Staff creating a doc: a client (Create Client) or a staff account.
+      function staffCreateOf(d, nd) {
+        return isSuperOf(d)
+          || (canAnyOf(d, ['staff.manage']) && !isSuperOf(nd))
+          || (canAnyOf(d, ['clients.create']) && noStaffFields(nd));
+      }
+
+      allow get: if isOwner() || canReadUsers();
+      allow list: if canReadUsers();
+
+      // Signup: the client creates their own doc with safe starting values
+      // -- OR staff create one (Create Client / Add Staff).
+      allow create: if (hasMe() && staffCreateOf(me(), request.resource.data)) || (
+        isOwner()
+        && request.resource.data.uid == userId
+        && noStaffFields(request.resource.data)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.mt5_login == null
+        && request.resource.data.mt5_password == null
+      );
+
+      // Self-service updates: only KYC submission and MT5 account requests,
+      // never touching privileged fields.
+      allow update: if (hasMe() && staffUpdateOf(me(), request.resource.data.diff(resource.data).affectedKeys())) || (
+        isOwner() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['is_admin', 'is_super_admin', 'role', 'role_name', 'perms', 'role_updated_at', 'role_updated_by', 'mt5_login', 'mt5_password', 'mt5_server', 'mt5_accounts', 'mt5_history', 'mt5_pending_renames', 'last_rebate_amount', 'last_rebate_paid_at', 'rebate_history', 'referral_code', 'referral_count', 'referral_credited', 'rejection_reason', 'created_by', 'email', 'uid']) &&
+        (
+          // Submitting or resubmitting KYC documents
+          (resource.data.status in ['pending', 'pending_kyc', 'kyc_rejected'] &&
+           request.resource.data.status == 'kyc_submitted') ||
+          // Requesting an MT5 account once KYC is approved
+          (resource.data.status == 'kyc_approved' &&
+           request.resource.data.status == 'mt5_requested') ||
+          // Requesting an additional (2nd/3rd) MT5 account once active
+          (resource.data.status == 'active' &&
+           request.resource.data.status == 'mt5_requested')
+        )
+      );
+
+      allow delete: if isSuper();
+    }
+  }
+}
