@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototype — Nav Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+Arabic:wght@400;500;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:      #0D1F2D;
+    --navy-lt:   #14293A;
+    --teal:      #1A3A4A;
+    --gold:      #C9A84C;
+    --gold-lt:   #D9BF71;
+    --gold-dim:  rgba(201,168,76,0.1);
+    --cream:     #F5F0E8;
+    --steel:     #6B8F9E;
+    --line:      rgba(245,240,232,0.09);
+    --green:     #6FBF8F;
+    --green-dim: rgba(111,191,143,0.1);
+    --yellow:    #D9BF71;
+    --yellow-dim:rgba(217,191,113,0.1);
+    --err:       #E8837A;
+  }
+
+  body {
+    font-family: 'Noto Sans Arabic', sans-serif;
+    background: var(--navy);
+    color: var(--cream);
+    min-height: 100vh;
+    direction: rtl;
+  }
+  body.en { font-family: 'Inter', sans-serif; direction: ltr; text-align: left; }
+
+  .lang-ar { display: block; }
+  .lang-en { display: none; }
+  span.lang-ar { display: inline; }
+  span.lang-en { display: none; }
+  body.en .lang-ar { display: none; }
+  body.en .lang-en { display: block; }
+  body.en span.lang-ar { display: none; }
+  body.en span.lang-en { display: inline; }
+
+  /* ── PROTOTYPE BANNER ── */
+  .proto-banner {
+    background: repeating-linear-gradient(45deg, #3a2f0d, #3a2f0d 10px, #2c2408 10px, #2c2408 20px);
+    color: var(--gold-lt);
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: 'Inter', sans-serif;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+  }
+  .proto-banner a { color: var(--cream); text-decoration: underline; }
+
+  /* ── NAV (copied from portal.html) ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 64px;
+    background: var(--navy-lt);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 33px;
+    z-index: 100;
+  }
+  .nav-logo { font-family: 'Noto Serif Arabic', serif; font-weight: 700; color: var(--gold-lt); font-size: 18px; text-decoration: none; }
+  body.en .nav-logo { font-family: 'Playfair Display', serif; }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .nav-user { font-size: 13px; color: var(--steel); display: flex; align-items: center; gap: 8px; }
+  .nav-user strong { color: var(--cream); font-weight: 500; }
+  .lang-toggle { display: flex; border: 1px solid rgba(201,168,76,0.3); border-radius: 3px; overflow: hidden; }
+  .lang-btn { padding: 4px 11px; font-size: 11px; font-weight: 700; color: var(--steel); background: transparent; border: none; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .lang-btn.active { background: var(--gold); color: var(--navy); }
+  .nav-logout { font-size: 12px; color: var(--steel); cursor: pointer; background: none; border: none; font-family: 'Noto Sans Arabic', sans-serif; }
+
+  /* ── SECTION TABS (the thing being tested) ── */
+  .section-tabs {
+    display: flex;
+    gap: 0;
+    max-width: 900px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 97px;
+    background: var(--navy);
+    z-index: 90;
+  }
+  .section-tab {
+    flex: 1;
+    text-align: center;
+    padding: 16px 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--steel);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .section-tab.active { color: var(--gold-lt); border-bottom-color: var(--gold); }
+  .section-tab:hover { color: var(--cream); }
+
+  /* ── LAYOUT ── */
+  .portal-wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  .portal-greeting { margin-bottom: 24px; }
+  .portal-greeting h1 { font-family: 'Noto Serif Arabic', serif; font-size: 22px; font-weight: 700; color: var(--cream); margin-bottom: 4px; }
+  body.en .portal-greeting h1 { font-family: 'Playfair Display', serif; font-weight: 500; }
+  .portal-greeting p { font-size: 13px; color: var(--steel); font-weight: 300; }
+
+  /* ── BUTTONS ── */
+  .btn-primary { display: inline-block; padding: 13px 32px; background: var(--gold); color: var(--navy); font-size: 14px; font-weight: 700; text-decoration: none; border: none; cursor: pointer; font-family: 'Noto Sans Arabic', sans-serif; transition: background 0.2s; }
+  body.en .btn-primary { font-family: 'Inter', sans-serif; }
+  .btn-primary:hover { background: var(--gold-lt); }
+  .btn-outline { display: inline-block; padding: 13px 32px; background: transparent; color: var(--cream); font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); cursor: pointer; font-family: 'Noto Sans Arabic', sans-serif; transition: border-color 0.2s; }
+  .btn-outline:hover { border-color: var(--gold); }
+
+  /* ── ACCOUNT LOGIN ROW (clickable, used on Main + Accounts) ── */
+  .login-row {
+    background: var(--navy-lt);
+    border: 1px solid var(--line);
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .login-row:hover { border-color: var(--gold); }
+  .login-row-login { font-size: 20px; font-weight: 700; color: var(--cream); font-family: 'Inter', sans-serif; direction: ltr; }
+  .login-row-meta { font-size: 12px; color: var(--steel); margin-top: 2px; }
+  .login-row-balance { font-size: 16px; font-weight: 700; color: var(--gold-lt); font-family: 'Inter', sans-serif; }
+  .login-row-arrow { color: var(--steel); font-size: 18px; margin-inline-start: 12px; }
+
+  /* ── MT5 / REFERRAL / FUNDING CARDS (copied from portal.html) ── */
+  .mt5-card { background: var(--navy-lt); border: 1px solid var(--line); padding: 32px; margin-bottom: 20px; }
+  .mt5-card-title { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-lt); margin-bottom: 24px; font-family: 'Inter', sans-serif; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .mt5-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mt5-field-label { font-size: 11px; color: var(--steel); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; font-family: 'Inter', sans-serif; }
+  .mt5-field-value { font-size: 18px; font-weight: 700; color: var(--cream); font-family: 'Inter', sans-serif; display: flex; align-items: center; gap: 10px; }
+  .copy-btn { font-size: 11px; color: var(--steel); background: var(--teal); border: 1px solid var(--line); padding: 3px 8px; cursor: pointer; font-family: 'Inter', sans-serif; }
+
+  .referral-card { background: var(--navy-lt); border: 1px solid var(--line); padding: 32px; margin-bottom: 20px; }
+  .referral-card-title { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-lt); margin-bottom: 8px; font-family: 'Inter', sans-serif; }
+  .referral-card-sub { font-size: 13px; color: var(--steel); margin-bottom: 20px; font-weight: 300; }
+  .referral-link-box { display: flex; align-items: center; background: var(--teal); border: 1px solid var(--line); }
+  .referral-link-text { flex: 1; padding: 12px 16px; font-size: 13px; color: var(--steel); font-family: 'Inter', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
+  .referral-copy-btn { padding: 12px 20px; background: var(--gold); color: var(--navy); border: none; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; }
+
+  .funding-card { background: var(--navy-lt); border: 1px solid var(--line); padding: 32px; margin-bottom: 20px; }
+  .funding-card-title { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-lt); margin-bottom: 16px; font-family: 'Inter', sans-serif; }
+  .funding-tab-btn { flex: 1; background: var(--teal); border: 1px solid var(--line); color: var(--cream); padding: 12px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .funding-tab-btn.active { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+  .funding-form-group { margin-top: 16px; }
+  .funding-label { font-size: 11px; color: var(--steel); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-family: 'Inter', sans-serif; display: block; }
+  .funding-input, .funding-select { width: 100%; background: var(--teal); border: 1px solid var(--line); color: var(--cream); padding: 12px 14px; font-size: 14px; font-family: 'Inter', sans-serif; }
+  .funding-note { font-size: 12px; color: var(--steel); line-height: 1.6; margin-top: 8px; }
+
+  .history-row { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .history-row:last-child { border-bottom: none; }
+  .history-meta { font-size: 13px; color: var(--cream); }
+  .history-sub { font-size: 11px; color: var(--steel); margin-top: 2px; }
+  .history-status { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap; }
+  .history-status.pending { background: var(--yellow-dim); color: var(--yellow); }
+  .history-status.done { background: var(--green-dim); color: var(--green); }
+  .history-status.rejected { background: rgba(232,131,122,0.1); color: var(--err); }
+
+  .txn-banner { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid var(--line); font-size: 13px; line-height: 1.6; }
+  .txn-banner.success { background: var(--green-dim); border-color: rgba(111,191,143,0.3); color: var(--green); }
+  .txn-banner-close { background: none; border: none; color: inherit; font-size: 16px; cursor: pointer; opacity: 0.6; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--navy-lt); border: 1px solid var(--gold); color: var(--cream); padding: 12px 20px; font-size: 13px; z-index: 300; }
+</style>
+</head>
+<body id="body">
+
+<div class="proto-banner">
+  🧪 LOCAL PROTOTYPE — nothing here is wired to Firebase, nothing submits for real. Comparing the tabbed-navigation flow against <a href="portal.html" target="_blank">the current single-page portal</a>.
+</div>
+
+<nav>
+  <span class="nav-logo">HarmonyFX</span>
+  <div class="nav-right">
+    <div class="nav-user">
+      <span class="lang-ar">مرحباً، </span><span class="lang-en">Hello, </span>
+      <strong>Test</strong>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="nav-logout">
+      <span class="lang-ar">خروج</span><span class="lang-en">Logout</span>
+    </button>
+  </div>
+</nav>
+
+<div class="section-tabs">
+  <button class="section-tab active" data-page="main" onclick="showPage('main')">
+    <span class="lang-ar">الرئيسية</span><span class="lang-en">Main</span>
+  </button>
+  <button class="section-tab" data-page="accounts" onclick="showPage('accounts')">
+    <span class="lang-ar">الحسابات</span><span class="lang-en">Accounts</span>
+  </button>
+  <button class="section-tab" data-page="transactions" onclick="showPage('transactions')">
+    <span class="lang-ar">إيداع / سحب</span><span class="lang-en">Deposit / Withdraw</span>
+  </button>
+  <button class="section-tab" data-page="history" onclick="showPage('history')">
+    <span class="lang-ar">السجل</span><span class="lang-en">History</span>
+  </button>
+</div>
+
+<div class="portal-wrap">
+
+  <div id="txn-banners">
+    <div class="txn-banner success">
+      <span><span class="lang-ar">تم تأكيد إيداعك بمبلغ $120.</span><span class="lang-en">Your deposit of $120 has been confirmed.</span></span>
+      <button class="txn-banner-close" onclick="this.parentElement.remove()">×</button>
+    </div>
+  </div>
+
+  <!-- ══════════ MAIN PAGE ══════════ -->
+  <div class="page-section active" id="page-main">
+    <div class="portal-greeting">
+      <h1><span class="lang-ar">بوابتي</span><span class="lang-en">My Portal</span></h1>
+      <p><span class="lang-ar">حساباتك على MT5 — اضغط على أي حساب لعرض التفاصيل</span><span class="lang-en">Your MT5 accounts — click any one to see its details</span></p>
+    </div>
+
+    <div id="main-accounts-list"></div>
+
+    <div class="referral-card">
+      <div class="referral-card-title lang-ar">رابط الإحالة</div>
+      <div class="referral-card-title lang-en">Referral Link</div>
+      <p class="referral-card-sub lang-ar">شارك رابطك مع أصدقائك واكسب عمولات على تداولاتهم</p>
+      <p class="referral-card-sub lang-en">Share your link with friends and earn commissions on their trades</p>
+      <div class="referral-link-box">
+        <div class="referral-link-text">https://harmonyfx.me/signup.html?ref=ABC123</div>
+        <button class="referral-copy-btn" onclick="toast('Copied (not really — prototype)')">
+          <span class="lang-ar">نسخ الرابط</span><span class="lang-en">Copy Link</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ ACCOUNTS PAGE ══════════ -->
+  <div class="page-section" id="page-accounts">
+    <div class="portal-greeting">
+      <h1><span class="lang-ar">الحسابات</span><span class="lang-en">Accounts</span></h1>
+      <p><span class="lang-ar">اضغط على رقم أي حساب للانتقال إلى الإيداع/السحب</span><span class="lang-en">Click any login to jump straight to deposit/withdraw</span></p>
+    </div>
+
+    <div id="accounts-detail-list"></div>
+
+    <div class="mt5-card" style="text-align:center;">
+      <button class="btn-primary" onclick="toast('Would request a 3rd MT5 account — not wired up in this prototype')">
+        <span class="lang-ar">طلب حساب MT5 إضافي</span><span class="lang-en">Request Another MT5 Account</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════ TRANSACTIONS PAGE ══════════ -->
+  <div class="page-section" id="page-transactions">
+    <div class="portal-greeting">
+      <h1><span class="lang-ar">إيداع وسحب</span><span class="lang-en">Deposit & Withdraw</span></h1>
+      <p id="txn-context-note"></p>
+    </div>
+
+    <div class="funding-card">
+      <div id="funding-account-picker" style="margin-bottom:16px;">
+        <div class="mt5-field-label lang-ar" style="margin-bottom:6px;">أي حساب؟</div>
+        <div class="mt5-field-label lang-en" style="margin-bottom:6px;">Which account?</div>
+        <select id="funding-account-select" class="funding-select" onchange="onAccountPicked()"></select>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="funding-tab-btn active" id="tab-btn-deposit" onclick="showFundingTab('deposit')">
+          <span class="lang-ar">إيداع</span><span class="lang-en">Deposit</span>
+        </button>
+        <button class="funding-tab-btn" id="tab-btn-withdraw" onclick="showFundingTab('withdraw')">
+          <span class="lang-ar">سحب</span><span class="lang-en">Withdraw</span>
+        </button>
+      </div>
+
+      <div id="tab-deposit" style="margin-top:20px;">
+        <div class="funding-form-group" style="margin-top:0;">
+          <label class="funding-label lang-ar">المبلغ (USD)</label>
+          <label class="funding-label lang-en">Amount (USD)</label>
+          <input type="number" class="funding-input" placeholder="100">
+        </div>
+        <div class="funding-form-group">
+          <label class="funding-label lang-ar">طريقة الإيداع</label>
+          <label class="funding-label lang-en">Deposit Method</label>
+          <select class="funding-select">
+            <option>Whish Money</option>
+            <option>USDT</option>
+          </select>
+        </div>
+        <div class="funding-form-group">
+          <label class="funding-label lang-ar">صورة الإيصال</label>
+          <label class="funding-label lang-en">Receipt Screenshot</label>
+          <input type="file" class="funding-input">
+        </div>
+        <button class="btn-primary" style="margin-top:16px;width:100%;" onclick="toast('Would submit a deposit request — not wired up in this prototype')">
+          <span class="lang-ar">إرسال طلب الإيداع</span><span class="lang-en">Submit Deposit Request</span>
+        </button>
+      </div>
+
+      <div id="tab-withdraw" style="display:none;margin-top:20px;">
+        <div class="funding-form-group" style="margin-top:0;">
+          <label class="funding-label lang-ar">المبلغ (USD)</label>
+          <label class="funding-label lang-en">Amount (USD)</label>
+          <input type="number" class="funding-input" placeholder="100">
+        </div>
+        <div class="funding-form-group">
+          <label class="funding-label lang-ar">طريقة السحب</label>
+          <label class="funding-label lang-en">Withdrawal Method</label>
+          <select class="funding-select">
+            <option>Whish Money</option>
+            <option>USDT</option>
+          </select>
+        </div>
+        <div class="funding-form-group">
+          <label class="funding-label lang-ar">رقم الهاتف لاستلام المبلغ</label>
+          <label class="funding-label lang-en">Phone Number to Receive Funds</label>
+          <input type="text" class="funding-input" dir="ltr">
+        </div>
+        <button class="btn-primary" style="margin-top:16px;width:100%;" onclick="toast('Would submit a withdrawal request — not wired up in this prototype')">
+          <span class="lang-ar">إرسال طلب السحب</span><span class="lang-en">Submit Withdrawal Request</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ HISTORY PAGE ══════════ -->
+  <div class="page-section" id="page-history">
+    <div class="portal-greeting">
+      <h1><span class="lang-ar">سجل العمليات</span><span class="lang-en">Transaction History</span></h1>
+    </div>
+
+    <div class="funding-card">
+      <button class="btn-outline" id="history-reveal-btn" style="width:100%;" onclick="revealHistory()">
+        <span class="lang-ar">عرض سجل العمليات</span><span class="lang-en">Show Transaction History</span>
+      </button>
+      <div id="history-content" style="display:none;margin-top:12px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── MOCK DATA ──
+  const accounts = [
+    { login: '206501', server: 'Harmonic', balance: '1,240.00' },
+    { login: '206502', server: 'Harmonic', balance: '85.50' },
+  ];
+  const history = [
+    { type: 'deposit', amount: 120, login: '206501', date: 'Sep 24, 2026', status: 'done' },
+    { type: 'withdraw', amount: 50, login: '206502', date: 'Sep 23, 2026', status: 'pending' },
+    { type: 'deposit', amount: 15, login: '206501', date: 'Sep 20, 2026', status: 'rejected', reason: 'Receipt does not match the claimed amount' },
+    { type: 'deposit', amount: 300, login: '206502', date: 'Sep 18, 2026', status: 'done' },
+  ];
+
+  function renderMainAccounts() {
+    document.getElementById('main-accounts-list').innerHTML = accounts.map(a => `
+      <div class="login-row" onclick="goToTransactionsFor('${a.login}')">
+        <div>
+          <div class="login-row-login">${a.login}</div>
+          <div class="login-row-meta">${a.server}</div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <div class="login-row-balance">$${a.balance}</div>
+          <span class="login-row-arrow">‹</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderAccountsDetail() {
+    document.getElementById('accounts-detail-list').innerHTML = accounts.map((a, i) => `
+      <div class="mt5-card">
+        <div class="mt5-card-title lang-ar">بيانات حساب MT5 #${i + 1}</div>
+        <div class="mt5-card-title lang-en">MT5 Account Details #${i + 1}</div>
+        <div class="mt5-fields">
+          <div>
+            <div class="mt5-field-label lang-ar">رقم الحساب</div>
+            <div class="mt5-field-label lang-en">Login</div>
+            <div class="mt5-field-value" style="cursor:pointer;" onclick="goToTransactionsFor('${a.login}')">
+              ${a.login} <span class="copy-btn">→</span>
+            </div>
+          </div>
+          <div>
+            <div class="mt5-field-label lang-ar">السيرفر</div>
+            <div class="mt5-field-label lang-en">Server</div>
+            <div class="mt5-field-value">${a.server}</div>
+          </div>
+          <div>
+            <div class="mt5-field-label lang-ar">الرصيد</div>
+            <div class="mt5-field-label lang-en">Balance</div>
+            <div class="mt5-field-value">$${a.balance}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderFundingPicker() {
+    const sel = document.getElementById('funding-account-select');
+    sel.innerHTML = accounts.map(a => `<option value="${a.login}">${a.login}</option>`).join('');
+  }
+
+  function renderHistory() {
+    document.getElementById('history-content').innerHTML = history.map(h => {
+      const statusClass = h.status === 'done' ? 'done' : h.status === 'pending' ? 'pending' : 'rejected';
+      const typeLabel = h.type === 'deposit' ? 'Deposit' : 'Withdrawal';
+      return `
+        <div class="history-row">
+          <div>
+            <div class="history-meta">MT5 ${h.login} · $${h.amount} ${typeLabel}</div>
+            <div class="history-sub">${h.date}${h.reason ? ' — ' + h.reason : ''}</div>
+          </div>
+          <div class="history-status ${statusClass}">${h.status}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  let historyRevealed = false;
+  function revealHistory() {
+    historyRevealed = true;
+    document.getElementById('history-reveal-btn').style.display = 'none';
+    document.getElementById('history-content').style.display = 'block';
+    renderHistory();
+  }
+
+  let selectedAccount = null;
+  function goToTransactionsFor(login) {
+    selectedAccount = login;
+    showPage('transactions');
+    document.getElementById('funding-account-select').value = login;
+    updateTxnContextNote();
+  }
+  function onAccountPicked() {
+    selectedAccount = document.getElementById('funding-account-select').value;
+    updateTxnContextNote();
+  }
+  function updateTxnContextNote() {
+    const note = document.getElementById('txn-context-note');
+    const isAr = !document.getElementById('body').classList.contains('en');
+    note.textContent = selectedAccount
+      ? (isAr ? `الحساب المحدد: ${selectedAccount}` : `Acting on account: ${selectedAccount}`)
+      : '';
+  }
+
+  function showPage(page) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.section-tab').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  }
+
+  function showFundingTab(tab) {
+    document.getElementById('tab-btn-deposit').classList.toggle('active', tab === 'deposit');
+    document.getElementById('tab-btn-withdraw').classList.toggle('active', tab === 'withdraw');
+    document.getElementById('tab-deposit').style.display = tab === 'deposit' ? 'block' : 'none';
+    document.getElementById('tab-withdraw').style.display = tab === 'withdraw' ? 'block' : 'none';
+  }
+
+  function toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+
+  function setLang(lang) {
+    const body = document.getElementById('body');
+    if (lang === 'en') {
+      body.classList.add('en'); body.setAttribute('dir', 'ltr');
+      document.getElementById('btn-en').classList.add('active');
+      document.getElementById('btn-ar').classList.remove('active');
+    } else {
+      body.classList.remove('en'); body.setAttribute('dir', 'rtl');
+      document.getElementById('btn-ar').classList.add('active');
+      document.getElementById('btn-en').classList.remove('active');
+    }
+    updateTxnContextNote();
+  }
+
+  renderMainAccounts();
+  renderAccountsDetail();
+  renderFundingPicker();
+</script>
+
+</body>
+</html>
