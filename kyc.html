@@ -826,8 +826,8 @@
       // way there is for anything a client actually sees.
       try {
         const fullnameVal = document.getElementById('fullname').value.trim();
-        await emailjs.send('service_0oshg5a', 'template_k00znup', {
-          to_email: 'support@harmonyfx.me',
+        await emailjs.send('service_82fklqr', 'template_jxmt19a', {
+          // Staff alert template: recipient (support@harmonyfx.me) is fixed in EmailJS.
           reply_to: currentUser.email,
           subject: 'New KYC Submission — ' + fullnameVal,
           message: `Client: ${fullnameVal}\nEmail: ${currentUser.email}\nSubmitted: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Beirut' })}\n\nNew KYC submission received.`
